@@ -110,7 +110,7 @@ timer_sleep (int64_t ticks)
   list_push_front (&(st.sema.waiters), &((thread_current())->elem));
   sema_init(&(st.sema), 0);
   st.alarm_ticks = ticks;
-  list_push_back (&sleep_list, &st);
+  list_push_back (&sleep_list, &(st.elem));
   printf((thread_current())->name);
   printf(": sema init ok\n");
   sema_down(&(st.sema));
@@ -199,7 +199,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   struct list_elem* e;
   bool removed = false;
 
-  for (e = list_begin (&sleeping_list); e != list_end (&sleeping_list);
+  for (e = list_begin (&sleep_list); e != list_end (&sleep_list);
            e = list_next (e)) {
     do {
       removed = false;
@@ -209,23 +209,10 @@ timer_interrupt (struct intr_frame *args UNUSED)
         sema_up (&(st->sema));
 	e = list_remove(e);
 	removed = true;
-      }
-    while (removed);
+      } 
+    } while (removed);
   }
 
-
-
-  if (is_sleeping) {
-    alarm_ticks--;
-    printf((thread_current())->name);
-    printf(": tick, %d\n", alarm_ticks);
-    if (alarm_ticks <= 0) {
-      is_sleeping = false;
-      sema_up (sema);
-      printf((thread_current())->name);
-      printf(": sema up called\n");
-    }
-  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
