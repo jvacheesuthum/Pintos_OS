@@ -96,14 +96,14 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
 
   /*init semaphore*/
-  sema->waiters = struct list thread_list;
+  struct list thread_list;
+  sema->waiters = thread_list;
   list_init (&thread_list);
-  list_push_front (&thread_list, &((thread_current())->list_elem));
+  list_push_front (&thread_list, &((thread_current())->elem));
   sema_init(sema, 0);
 
   sema_down(sema);
