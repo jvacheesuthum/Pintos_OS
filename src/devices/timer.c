@@ -198,7 +198,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   /*alarm - when timer is sleeping*/
   if (is_sleeping) {
     alarm_ticks--;
-    if (alarm_ticks == 0) {
+    if (alarm_ticks <= 0) {
       is_sleeping = false;
       sema_up (sema);
       printf((thread_current())->name);
