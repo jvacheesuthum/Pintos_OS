@@ -112,8 +112,8 @@ timer_sleep (int64_t ticks)
   printf("sema init ok\n");
 
   alarm_ticks = ticks;
-  sema_down(sema);  
   is_sleeping = true;
+  sema_down(sema);
 
 }
 
