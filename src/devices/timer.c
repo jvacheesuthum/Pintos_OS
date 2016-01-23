@@ -98,23 +98,24 @@ timer_sleep (int64_t ticks)
 {
 
   ASSERT (intr_get_level () == INTR_ON);
-  printf("sleep called\n");
+  printf((thread_current())->name));
+  printf(": sleep called\n");
   /*init semaphore*/
   struct semaphore alarm_semaphore;
   sema = &alarm_semaphore;
   struct list thread_list;
   sema->waiters = thread_list;
   list_init (&thread_list);
-  printf("list init ok\n");
   list_push_front (&thread_list, &((thread_current())->elem));
-  printf("thread in list\n");
   sema_init(sema, 0);
-  printf("sema init ok\n");
+  printf((thread_current())->name));
+  printf(": sema init ok\n");
 
   alarm_ticks = ticks;
   is_sleeping = true;
   sema_down(sema);
-
+  printf((thread_current())->name));
+  printf(": woke up\n");
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -200,7 +201,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
     if (alarm_ticks == 0) {
       is_sleeping = false;
       sema_up (sema);
-      printf("sema up\n");
+      printf((thread_current())->name));
+      printf(": sema up called\n");
     }
   }
 }
