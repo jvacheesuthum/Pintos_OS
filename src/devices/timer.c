@@ -7,6 +7,7 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include "lib/kernel/list.h"
   
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -16,6 +17,11 @@
 #if TIMER_FREQ > 1000
 #error TIMER_FREQ <= 1000 recommended
 #endif
+
+/* for alarm */
+static struct semaphore *sema;
+static bool is_sleeping;
+static int64_t alarm_ticks;
 
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
@@ -37,6 +43,7 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  is_sleeping = false;
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -92,8 +99,17 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+
+  /*init semaphore*/
+  sema->waiters = struct list thread_list;
+  list_init (&thread_list);
+  list_push_front (&thread_list, &((thread_current())->list_elem));
+  sema_init(sema, 0);
+
+  sema_down(sema);
+  alarm_ticks = ticks;
+  is_sleeping = true;
+
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -172,6 +188,15 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+
+  /*alarm - when timer is sleeping*/
+  if (is_sleeping) {
+    alarm_ticks--;
+    if (alarm_ticks == 0) {
+      is_sleeping = false;
+      sema_up (sema);
+    }
+  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
