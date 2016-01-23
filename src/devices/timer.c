@@ -100,6 +100,7 @@ timer_sleep (int64_t ticks)
   ASSERT (intr_get_level () == INTR_ON);
 
   /*init semaphore*/
+  printf("sleep called\n");
   struct list thread_list;
   sema->waiters = thread_list;
   list_init (&thread_list);
