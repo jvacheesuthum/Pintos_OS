@@ -197,20 +197,16 @@ timer_interrupt (struct intr_frame *args UNUSED)
 
   /*alarm - when timer is sleeping*/
   struct list_elem* e;
-  bool removed = false;
-
-  for (e = list_begin (&sleep_list); e != list_end (&sleep_list);
-           e = list_next (e)) {
-    do {
-      removed = false;
-      struct sleeping_thread *st = list_entry (e, struct sleeping_thread, elem);
-      st->alarm_ticks--;
-      if (st->alarm_ticks <= 0) {
-        sema_up (&(st->sema));
-	e = list_remove(e);
-	removed = true;
-      } 
-    } while (removed);
+  e = list_begin (&sleep_list);
+  while (e != list_end (&sleep_list)) {
+    struct sleeping_thread *st = list_entry (e, struct sleeping_thread, elem);
+    st->alarm_ticks--;
+    if (st->alarm_ticks <= 0) {
+      sema_up (&(st->sema));
+      e = list_remove(e);
+    } else {
+      e = list_next(e);
+    }
   }
 
 }
