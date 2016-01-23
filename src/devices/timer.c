@@ -19,9 +19,9 @@
 #endif
 
 /* for alarm */
-static struct semaphore *sema;
-static bool is_sleeping;
-static int64_t alarm_ticks;
+struct semaphore *sema;
+bool is_sleeping;
+int64_t alarm_ticks;
 
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
