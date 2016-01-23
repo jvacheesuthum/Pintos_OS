@@ -103,11 +103,14 @@ timer_sleep (int64_t ticks)
   struct list thread_list;
   sema->waiters = thread_list;
   list_init (&thread_list);
+  printf("list init ok\n");
   list_push_front (&thread_list, &((thread_current())->elem));
+  printf("thread in list\n");
   sema_init(sema, 0);
+  printf("sema init ok\n");
 
-  sema_down(sema);
   alarm_ticks = ticks;
+  sema_down(sema);  
   is_sleeping = true;
 
 }
@@ -195,6 +198,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
     if (alarm_ticks == 0) {
       is_sleeping = false;
       sema_up (sema);
+      printf("sema up\n");
     }
   }
 }
