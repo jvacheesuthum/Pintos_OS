@@ -87,7 +87,6 @@ timer_elapsed (int64_t then)
   return timer_ticks () - then;
 }
 
-
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
 void
