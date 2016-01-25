@@ -1,0 +1,23 @@
+1.git clone https://gitlab.doc.ic.ac.uk/lab1516_spring/pintos_22.git
+
+2. strcpy() can overflow the buffer reserved for its output
+
+3. 4 ticks, 0.04 second
+
+4.
+  
+5. The property of reproducibility is being able to produce the same solution from a program in every execution, given that the environment stays the same. This means that concurrency does not affect the consistency of the execution. 
+   Without reproducibility, debugging can get complicated. Locating where the bug occurs can be hard and fixing a bug in one section can cause some other bug to occur during execution where concurrent processes take place.
+
+6.#include <stdio.h>
+  printf(%ul, int);
+
+7. In Pintos, both semaphores and locks are represented by using structs and can be initialize using their own init function passing a pointer to it. Both also has "release" and "acquire" functions to operate (For semaphores these are "up" and "down").
+   Semaphore does not have an owner, it can be "up" or "down" by different threads, but a lock must be owned by a single thread at one time. The same thread must both acquire and release it. A semaphore can have a value greater than 1 while a lock cannot.
+
+8. The size of the execution stack is just under 4 kB. The `struct thread' must not be allowed to grow too big, or there will not be enough room for the kernel stack. Kernel stacks also must not be allowed to grow too large which can cause a stack overflow and corrupt the thread state.
+   The struct thread has an unsigned int member 'magic' which is used to detect stack overflow. Stack overflow tends to change this value which will trigger the assertion in thread_current(). 
+
+
+9. log : src/devices/build/tests/devices/alarm-multiple.result
+   output: src/devices/build/tests/devices/alarm-multiple.output
