@@ -196,8 +196,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
   while (e != list_end (&sleep_list)) {
     struct sleeping_thread *st = list_entry (e, struct sleeping_thread, elem);
     st->alarm_ticks--;
-    //printf((thread_current()) -> name);
-    //printf(": tick, %d\n", st -> alarm_ticks);
     if (st->alarm_ticks <= 0) {
       sema_up (&(st->sema));
       e = list_remove(e);
