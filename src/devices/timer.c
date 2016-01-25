@@ -89,9 +89,9 @@ timer_elapsed (int64_t then)
 
 struct sleeping_thread
   {
-    struct list_elem elem;
-    struct semaphore sema;
-    int64_t alarm_ticks;
+    struct list_elem elem; //Element of sleeping_list
+    struct semaphore sema; //Up when alarm_ticks <= 0
+    int64_t alarm_ticks; //ticks left until running
   };
 
 
