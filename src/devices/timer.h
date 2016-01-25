@@ -26,4 +26,12 @@ void timer_ndelay (int64_t nanoseconds);
 
 void timer_print_stats (void);
 
+struct sleeping_thread
+  {
+    struct list_elem elem;
+    struct semaphore sema;
+    int64_t alarm_ticks;
+  };
+
+
 #endif /* devices/timer.h */

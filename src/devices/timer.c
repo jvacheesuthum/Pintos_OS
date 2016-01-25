@@ -87,13 +87,6 @@ timer_elapsed (int64_t then)
   return timer_ticks () - then;
 }
 
-struct sleeping_thread
-  {
-    struct list_elem elem;
-    struct semaphore sema;
-    int64_t alarm_ticks;
-  };
-
 
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
@@ -204,6 +197,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
   while (e != list_end (&sleep_list)) {
     struct sleeping_thread *st = list_entry (e, struct sleeping_thread, elem);
     st->alarm_ticks--;
+    //printf((thread_current()) -> name);
+    //printf(": tick, %d\n", st -> alarm_ticks);
     if (st->alarm_ticks <= 0) {
       sema_up (&(st->sema));
       e = list_remove(e);
