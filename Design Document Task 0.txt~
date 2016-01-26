@@ -66,7 +66,7 @@ timer_interrupt goes through sleep_list and decrement alarm_ticks of each thread
 >> How are race conditions avoided when multiple threads call
 >> timer_sleep() simultaneously?
 
-timer_sleep() initializes a new struct every time it is called and it does not use any static variable apart from sleep_list. The order in which the 'struct sleeping_thread' is inserted into the list does not matter so multiple thread calls would not affect one another. Checking if a thread should 'wake up' also happens in timer_interrupt() and other threads would not be able to affect the list during timer_interrupt().
+timer_sleep() initializes a new struct every time it is called and it does not use any static variable apart from sleep_list. The order in which the 'struct sleeping_thread' is inserted into the list does not matter so multiple thread calls would not affect one another.
 
 >> A5: (1 mark)
 >> How are race conditions avoided when a timer interrupt occurs

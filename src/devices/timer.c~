@@ -94,15 +94,23 @@ timer_sleep (int64_t ticks)
 {
 
   ASSERT (intr_get_level () == INTR_ON);
+//  printf((thread_current())->name);
+//  printf(": sleep called\n");
 
   /*init sleeping thread*/
   struct sleeping_thread st;
   list_init(&(st.sema.waiters));
+  list_push_front (&(st.sema.waiters), &((thread_current())->elem));
   sema_init(&(st.sema), 0);
   st.alarm_ticks = ticks;
   list_push_back (&sleep_list, &(st.elem));
+//  printf((thread_current())->name);
+//  printf(": sema init ok\n");
 
   sema_down(&(st.sema));
+
+//  printf((thread_current())->name);
+//  printf(": woke up\n");
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
