@@ -60,13 +60,15 @@ timer_interrupt goes through sleep_list and decrement alarm_ticks of each thread
 >> What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
 
+Instead of calling timer_elapsed(start) and compare it with number of ticks so far in every call to timer_sleep, we decrement alarm_ticks in struct sleeping_thread for each interrupt called and "up" the semaphore in sleeping_thread. 
+
 ---- SYNCHRONIZATION ----
 
 >> A4: (1 mark)
 >> How are race conditions avoided when multiple threads call
 >> timer_sleep() simultaneously?
 
-timer_sleep() initializes a new struct every time it is called and it does not use any static variable apart from sleep_list. The order in which the 'struct sleeping_thread' is inserted into the list does not matter so multiple thread calls would not affect one another.
+timer_sleep() initializes a new struct every time it is called and it does not use any static variable apart from sleep_list. The order in which the 'struct sleeping_thread' is inserted into the list does not matter so multiple thread calls would not affect one another. Checking if a thread should 'wake up' also happens in timer_interrupt() and other threads would not be able to affect the list during timer_interrupt().
 
 >> A5: (1 mark)
 >> How are race conditions avoided when a timer interrupt occurs

@@ -60,6 +60,8 @@ timer_interrupt goes through sleep_list and decrement alarm_ticks of each thread
 >> What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
 
+Instead of calling timer_elapsed(start) and compare it with number of ticks so far in every call to timer_sleep, we decrement alarm_ticks in struct sleeping_thread for each interrupt called and "up" the semaphore in sleeping_thread. 
+
 ---- SYNCHRONIZATION ----
 
 >> A4: (1 mark)
