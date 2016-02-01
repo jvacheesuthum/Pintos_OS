@@ -179,10 +179,15 @@ thread_create (const char *name, int priority,
   t = palloc_get_page (PAL_ZERO);
   if (t == NULL)
     return TID_ERROR;
-
-  /* Initialize thread. */
+ 
+   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+ 
+  /* TASK1: calculate the thread's priority */
+  t-> niceness = thread_get_nice(); 
+  t-> recent_cpu = calc_recent_cpu_of(t);
+  t-> priority = calc_pri_of(t); 
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -245,7 +250,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  list_push_back (&ready_list, &t->elem); /*TASK1 TODO: change this to add the thread into one of the 64 lists and check if need to yield the current running thread*/
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -383,6 +388,18 @@ thread_get_recent_cpu (void)
   /* Not yet implemented. */
   return 0;
 }
+
+/* Some extra functions for TASK1 */
+int
+calc_pri_of(struct thread* t){
+  return 0;
+}
+
+int 
+calc_recent_cpu_of(struct thread* t){
+  return 0;
+}
+
 
 /* Idle thread.  Executes when no other thread is ready to run.
 
@@ -471,6 +488,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  t->niceness = 0;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
