@@ -186,7 +186,7 @@ thread_create (const char *name, int priority,
  
   /* TASK1: calculate the thread's priority */
   t-> niceness = thread_get_nice(); 
-  t-> recent_cpu = calc_recent_cpu_of(t);
+  t-> recent_cpu = thread_get_recent_cpu();
   t-> priority = calc_pri_of(t); 
 
   /* Prepare thread for first run by initializing its stack.
@@ -389,16 +389,36 @@ thread_get_recent_cpu (void)
   return 0;
 }
 
-/* Some extra functions for TASK1 */
+/* ------------------- Some extra functions for TASK1 ----------------------- */
 int
-calc_pri_of(struct thread* t){
-  return 0;
+calc_priority_of(struct thread* t){
+  return PRIMAX - (t-> recent_cpu)/4 - (t-> niceness)/2;
 }
 
-int 
-calc_recent_cpu_of(struct thread* t){
-  return 0;
+void
+update_priority_of(struct thread* t, void* aux){
+  t-> priority = calc_priority_of(t);
+  /* 
+   * TODO: move to the new priority list/queue
+   * TODO: if it has higher priority than current thread then call thread_yield? => what about race conditions?
+  */
 }
+
+void 
+update_recent_cpu_of(struct thread* t, void* aux){
+  /*
+   * TODO: calculate recent_cpu of thread t, then update it
+   */
+}
+
+void
+update_load_avg(void){
+  /*
+   * TODO: recalculate and update load_avg
+   */
+}
+
+/* ----------------------------------------------------------------------------- */
 
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -489,6 +509,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   t->niceness = 0;
+  t->recent_cpu = 0;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
