@@ -408,7 +408,7 @@ thread_get_priority (void)
 {
   sema_down(priority_sema);
   int pri = thread_current ()->priority;
-  sema_down(prioirty_sema);
+  sema_up(prioirty_sema);
   return pri;
 }
 
@@ -431,7 +431,10 @@ thread_set_nice (int new_nice)
 int
 thread_get_nice (void) 
 {
-  return thread_current() -> niceness;
+  sema_down(priority_sema);
+  int nice = thread_current() -> niceness;
+  sema_up(prioirty_sema);
+  return nice;
 }
 
 /* Returns 100 times the system load average. */
@@ -451,6 +454,7 @@ thread_get_recent_cpu (void)
 }
 
 /* ------------------- Some extra functions for TASK1 ----------------------- */
+/* Must be called by a function that is synchronized */
 int
 calc_priority_of(struct thread* t){
   return PRIMAX - (t-> recent_cpu)/4 - (t-> niceness)/2;
@@ -459,6 +463,7 @@ calc_priority_of(struct thread* t){
 /* Recalculate priority of thread t, move queue, 
  * but DOES NOT YIELD OR BLOCK CURRENT THREAD EVER, because it is also used by thread_foreach 
  * which is called when interrupt is turned off.   
+ * Must be called by a function that is synchronized. 
  */
 void
 update_priority_of(struct thread* t, void* aux UNUSED){
