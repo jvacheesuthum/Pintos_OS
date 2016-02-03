@@ -105,7 +105,7 @@ sema_try_down (struct semaphore *sema)
    and wakes up one thread of those waiting for SEMA, if any.
 
    This function may be called from an interrupt handler. */
-struct thread*
+void
 sema_up (struct semaphore *sema) 
 {
   enum intr_level old_level;
@@ -137,9 +137,10 @@ sema_up (struct semaphore *sema)
   }
   sema->value++;
   intr_set_level (old_level);
-  if (highest != NULL)
-    printf("should see not null!\n");
-  return highest;
+  if (highest != NULL) {
+    if (highest->priority > (thread_current ()->priority))
+      thread_yield ();
+  }
 }
 
 static void sema_test_helper (void *sema_);
@@ -252,15 +253,9 @@ lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
-  printf("lock released");
+
   lock->holder = NULL;
-  struct thread *t = sema_up (&lock->semaphore);
-  if (t != NULL) {
-    printf("not null!");
-    if (t->priority > (thread_current ()->priority))
-      printf("higher!");
-      thread_yield ();
-  }
+  sema_up (&lock->semaphore);
 }
 
 /* Returns true if the current thread holds LOCK, false
