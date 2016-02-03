@@ -427,13 +427,15 @@ calc_priority_of(struct thread* t){
   return PRIMAX - (t-> recent_cpu)/4 - (t-> niceness)/2;
 }
 
+/* Recalculate priority of thread t, move queue, 
+ * but DOES NOT YIELD CURRENT THREAD EVER, because it is also used by thread_foreach 
+ * which is called when interrupt is turned off.   
+ */
 void
 update_priority_of(struct thread* t, void* aux){
   t-> priority = calc_priority_of(t);
-  /* 
-   * TODO: move to the new priority list/queue
-   * TODO: if it has higher priority than current thread then call thread_yield? => what about race conditions?
-  */
+  list_remove(&t->elem); 
+  list_push_back(&(ready_queue[t->priority]), &t->elem);
 }
 
 void 

@@ -179,19 +179,23 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
+  enum intr_level old_level;
   ticks++;
   thread_tick ();
 
   /*TASK1 mlfqs: updating recent_cpu values*/
   if(thread_mlfqs){
     thread_current() -> recent_cpu++;
-    intr_disable();
+    old_level = intr_disable();
     if(timer_ticks() % TIMER_FREQ == 0){
       update_load_avg();
       thread_foreach(&update_recent_cpu_of, NULL);
       thread_foreach(&update_priority_of, NULL);
+      if(!highest_priority()){
+        thread_yield();
+      }
     }
-    intr_enable();
+    intr_set_level(old_level);
   }
 
   /*alarm - when timer is sleeping*/
