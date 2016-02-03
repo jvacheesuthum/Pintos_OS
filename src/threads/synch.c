@@ -353,7 +353,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
     }
     list_remove (&(highest->elem));
 
-    sema_up (highest->semaphore);
+    sema_up (&(highest->semaphore));
 
   }
 }
