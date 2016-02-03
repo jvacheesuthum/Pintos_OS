@@ -433,7 +433,7 @@ thread_get_nice (void)
 {
   sema_down(priority_sema);
   int nice = thread_current() -> niceness;
-  sema_up(prioirty_sema);
+  sema_up(priority_sema);
   return nice;
 }
 
@@ -441,16 +441,20 @@ thread_get_nice (void)
 int
 thread_get_load_avg (void) 
 {
-  //mainpulate lock here
-  return (int) (100 * load_avg);
+  sema_down(priority_sema);
+  float avg = load_avg;
+  sema_up(priority_sema);
+  return (int) (100 * avg);
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  //manipulate lock here
-  return (int) (100 * (thread_current()-> recent_cpu));
+  sema_down(priority_sema);
+  int recent = thread_current()-> recent_cpu;
+  sema_up(priority_sema);
+  return 100 * recent;
 }
 
 /* ------------------- Some extra functions for TASK1 ----------------------- */
@@ -472,20 +476,19 @@ update_priority_of(struct thread* t, void* aux UNUSED){
   list_push_back(&(ready_queue[t->priority]), &t->elem);
 }
 
+//any calls to this function should operate priority_sema
 void 
 update_recent_cpu_of(struct thread* t, void* aux UNUSED){
   int avg = thread_get_load_avg();  
-  //locks here
   int nice = t -> niceness
   int latest = t-> recent_cpu;
-  //unlock?
   t-> recent_cpu = (2*avg)/(2*avg + 1) * latest + nice;
 }
 
+  // ONLY happens when TIMER_FREQ == 0 -> called in timer.c
 void
 update_load_avg(void){
-  //manipulate locks here
-  // ONLY happens when TIMER_FREQ == 0 -> called in timer.c
+  sema_down(priority_sema);
   float ready_threads;
   for (int i = 0; i < 64; i++) {
 	ready_threads += list_size(&ready_queue[i]);
@@ -494,6 +497,7 @@ update_load_avg(void){
 	ready_threads += 1;
   }
   load_avg = (59/60)*load_avg + ready_threads/60;
+  sema_up(priority_sema);
 }
 
 /* ----------------------------------------------------------------------------- */
