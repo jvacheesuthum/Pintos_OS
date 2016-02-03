@@ -583,6 +583,7 @@ thread_schedule_tail (struct thread *prev)
 static void
 schedule (void) 
 {
+  printf("schedule called");
   struct thread *cur = running_thread ();
   struct thread *next = next_thread_to_run ();
   struct thread *prev = NULL;
@@ -590,9 +591,12 @@ schedule (void)
   ASSERT (intr_get_level () == INTR_OFF);
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
+  printf("asserts passed");
 
-  if (cur != next)
+  if (cur != next) {
+    printf("cur is not next, new thread to run");
     prev = switch_threads (cur, next);
+  }
   thread_schedule_tail (prev);
 }
 
