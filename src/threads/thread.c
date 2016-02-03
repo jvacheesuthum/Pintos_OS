@@ -211,13 +211,14 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  intr_set_level (old_level);
+
   /* Add to run queue. */
   thread_unblock (t);
 
   /* if highest priority, run now */
   printf("in thread create, check if highest");
   struct thread *cur = running_thread ();
-  printf("why is is stuck here?");
   if (t->priority > cur->priority) {
     printf("will attempt to preempt");
     if (cur->status != THREAD_RUNNING) {
@@ -227,7 +228,7 @@ thread_create (const char *name, int priority,
     }
   }
 
-  intr_set_level (old_level);
+  printf("finished thread create");
 
   return tid;
 }
