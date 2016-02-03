@@ -211,8 +211,6 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-  intr_set_level (old_level);
-
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -227,6 +225,8 @@ thread_create (const char *name, int priority,
       thread_yield ();
     }
   }
+
+  intr_set_level (old_level);
 
   return tid;
 }
