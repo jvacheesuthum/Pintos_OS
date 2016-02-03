@@ -216,8 +216,24 @@ lock_acquire (struct lock *lock)
 
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
+
+  (&(thread_current()->prev_priority))
+  thread_current()->priority = max_priority(&(&lock->semaphore)->waiters);
 }
 
+int
+max_priority(struct list waiters)
+{
+  struct list_elem* e = list_begin (&waiters);
+  int priority = (list_entry (e, struct thread, elem))->priority;
+  while (e != list_end(&sema->waiters)) {
+    if (priority < 
+      (list_entry (e, struct thread, elem))->priority) {
+      priority = (list_entry (e, struct thread, elem))->priority);
+    }
+    e = list_next(e);
+  }
+}
 /* Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
    thread.
