@@ -23,7 +23,7 @@
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
-static struct list *ready_queue;
+static struct list ready_queue[1];
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -93,11 +93,9 @@ thread_init (void)
   lock_init (&tid_lock);
   
   printf("thread init called");
-  ready_queue = calloc(64, sizeof(struct list));
   int i;
-  for (i = 0; i < 64; i++) {
+  for (i = 0; i < 1; i++) {
     list_init (&(ready_queue[i]));
-    printf("initialised queue %d", i);
   }
   printf("queues initialised");
 
@@ -270,7 +268,7 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
   printf("thread unblock, will add to queue");
-  list_push_back (&(ready_queue[t->priority]), &t->elem);
+  list_push_back (&(ready_queue[0]), &t->elem);
   printf("added to queue");
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -343,7 +341,7 @@ thread_yield (void)
   old_level = intr_disable ();
   if (cur != idle_thread) 
     printf("in thread yield, will add to queue");
-    list_push_back (&(ready_queue[cur->priority]), &cur->elem);
+    list_push_back (&(ready_queue[0]), &cur->elem);
     printf("added to queue");
   cur->status = THREAD_READY;
   schedule ();
@@ -527,7 +525,7 @@ static struct thread *
 next_thread_to_run (void) 
 {
   int i;
-  for (i = 63; i >= 0; i--) {
+  for (i = 0; i >= 0; i--) {
     if (!list_empty(&(ready_queue[i]))) {
       return list_entry (list_pop_front (&(ready_queue[i])), struct thread, elem);
     }
