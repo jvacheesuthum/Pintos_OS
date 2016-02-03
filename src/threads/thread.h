@@ -127,7 +127,6 @@ const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
-void thread_yield_up_sema(struct sema*)/*TASK1 mlfqs: to resolve priority_lock problem*/
 
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
