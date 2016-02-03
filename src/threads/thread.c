@@ -23,7 +23,7 @@
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
-static struct list ready_queue[1];
+static struct list ready_queue[64];
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -93,7 +93,7 @@ thread_init (void)
   lock_init (&tid_lock);
   
   int i;
-  for (i = 0; i < 1; i++) {
+  for (i = 0; i < 64; i++) {
     list_init (&(ready_queue[i]));
   }
 
@@ -261,7 +261,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&(ready_queue[0]), &t->elem);
+  list_push_back (&(ready_queue[t-priority]), &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -332,7 +332,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&(ready_queue[0]), &cur->elem);
+    list_push_back (&(ready_queue[cur->priority]), &cur->elem);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -515,7 +515,7 @@ static struct thread *
 next_thread_to_run (void) 
 {
   int i;
-  for (i = 0; i >= 0; i--) {
+  for (i = 63; i >= 0; i--) {
     if (!list_empty(&(ready_queue[i]))) {
       return list_entry (list_pop_front (&(ready_queue[i])), struct thread, elem);
     }
