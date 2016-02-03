@@ -8,6 +8,7 @@
 #include "threads/interrupt.h"
 #include "threads/intr-stubs.h"
 #include "threads/palloc.h"
+#include "threads/malloc.h"
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
@@ -92,7 +93,7 @@ thread_init (void)
   lock_init (&tid_lock);
   
   printf("thread init called");
-  ready_queue = malloc(64* sizeof(struct list));
+  ready_queue = calloc(64, sizeof(struct list));
   int i;
   for (i = 0; i < 64; i++) {
     list_init (&(ready_queue[i]));
