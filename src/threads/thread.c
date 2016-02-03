@@ -489,10 +489,10 @@ update_recent_cpu_of(struct thread* t, void* aux UNUSED){
 }
 
   // ONLY happens when TIMER_FREQ == 0 -> called in timer.c
-  //using FIXED POINT format 17.14 -> FP_CONV = 2^14 defined
+  // using FIXED POINT format 17.14 -> FP_CONV = 2^14 defined
+  // any calls to this function should operate priority_sema
 void
 update_load_avg(void){
-  sema_down(priority_sema);
   int ready_threads;
   for (int i = 0; i < 64; i++) {
 	ready_threads += list_size(&ready_queue[i]);
@@ -504,7 +504,6 @@ update_load_avg(void){
   int avg = FP_CONV * load_avg;
   load_avg = ((int64_t) first_fraction)*avg/FP_CONV + FP_CONV*(ready_threads/60);
   load_avg /= FP_CONV;     //this converts back to int, round twds 0
-  sema_up(priority_sema);
 }
 
 /* ----------------------------------------------------------------------------- */
