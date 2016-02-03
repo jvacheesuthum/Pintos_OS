@@ -130,8 +130,13 @@ sema_up (struct semaphore *sema)
     list_remove (&(highest->elem));
 
     thread_unblock (highest);
-    if (highest->priority > (thread_current ()->priority)) {
-      thread_yield ();
+    thread *cur = thread_current ();
+    if (highest->priority > cur->priority) {
+      if (cur->status != THREAD_RUNNING) {
+        schedule ();
+      } else {
+        thread_yield ();
+      }
     }
   }
   sema->value++;
