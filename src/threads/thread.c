@@ -442,9 +442,9 @@ int
 thread_get_load_avg (void) 
 {
   sema_down(priority_sema);
-  float avg = load_avg;
+  int avg = load_avg;
   sema_up(priority_sema);
-  return (int) (100 * avg);
+  return 100 * avg;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -480,23 +480,30 @@ update_priority_of(struct thread* t, void* aux UNUSED){
 void 
 update_recent_cpu_of(struct thread* t, void* aux UNUSED){
   int avg = thread_get_load_avg();  
-  int nice = t -> niceness
+  int nice = t -> niceness;
+  nice *= FP_CONV;
   int latest = t-> recent_cpu;
-  t-> recent_cpu = (2*avg)/(2*avg + 1) * latest + nice;
+  int first_part = FP_CONV * (2*avg)/(2*avg + 1);
+  t-> recent_cpu = (((int64_t) first_part) * latest + nice) / FP_CONV; //latest is not in fp format here
+  
 }
 
   // ONLY happens when TIMER_FREQ == 0 -> called in timer.c
+  //using FIXED POINT format 17.14 -> FP_CONV = 2^14 defined
 void
 update_load_avg(void){
   sema_down(priority_sema);
-  float ready_threads;
+  int ready_threads;
   for (int i = 0; i < 64; i++) {
 	ready_threads += list_size(&ready_queue[i]);
   }
   if (running_thread()-> status == THREAD_RUNNING) {
 	ready_threads += 1;
   }
-  load_avg = (59/60)*load_avg + ready_threads/60;
+  int first_fraction = FP_CONV * (59/60);
+  int avg = FP_CONV * load_avg;
+  load_avg = ((int64_t) first_fraction)*avg/FP_CONV + FP_CONV*(ready_threads/60);
+  load_avg /= FP_CONV;     //this converts back to int, round twds 0
   sema_up(priority_sema);
 }
 
