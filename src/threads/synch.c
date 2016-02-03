@@ -114,8 +114,8 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) {
-    thread_unblock (list_entry (list_pop_front(&sema->waiters), struct thread, elem));
-/*
+    //thread_unblock (list_entry (list_pop_front(&sema->waiters), struct thread, elem));
+    printf("sema choosing waiter");
     struct list_elem* e;
     e = list_begin (&sema->waiters);
     struct thread *highest = list_entry (e, struct thread, elem);
@@ -127,12 +127,14 @@ sema_up (struct semaphore *sema)
       }
       e = list_next(e);
     }
-
+    printf("sema chose a waiter");
     thread_unblock (highest);
-    if (highest->priority > (thread_current ()->priority))
+    if (highest->priority > (thread_current ()->priority)) {
+      printf("sema has a very high waiter!");
       thread_yield ();
-*/
+    }
   }
+  printf("sema done");
   sema->value++;
   intr_set_level (old_level);
 }
