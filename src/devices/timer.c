@@ -182,15 +182,17 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   thread_tick ();
 
-  /*TASK1 updating recent_cpu values*/
-  thread_current() -> recent_cpu++;
-  intr_disable();
-  if(timer_ticks() % TIMER_FREQ == 0){
-    update_load_avg();
-    thread_foreach(&update_recent_cpu_of, null);
-    thread_foreach(&update_priority_of, null);
+  /*TASK1 mlfqs: updating recent_cpu values*/
+  if(thread_mlfqs){
+    thread_current() -> recent_cpu++;
+    intr_disable();
+    if(timer_ticks() % TIMER_FREQ == 0){
+      update_load_avg();
+      thread_foreach(&update_recent_cpu_of, NULL);
+      thread_foreach(&update_priority_of, NULL);
+    }
+    intr_enable();
   }
-  intr_enable();
 
   /*alarm - when timer is sleeping*/
   struct list_elem* e;

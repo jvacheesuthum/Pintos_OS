@@ -190,11 +190,12 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
  
-  /* TASK1: calculate the thread's priority */
-  t-> niceness = thread_get_nice(); 
-  t-> recent_cpu = thread_get_recent_cpu();
-  t-> priority = calc_pri_of(t); 
-
+  /* TASK1 mlfqs: calculate the thread's priority */
+  if(thread_mlfqs){
+    t-> niceness = thread_get_nice(); 
+    t-> recent_cpu = thread_get_recent_cpu();
+    t-> priority = calc_pri_of(t); 
+  }
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -356,6 +357,7 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
+/* Return true if the current thread has highest priority */
 static bool 
 highest_priority (void)
 {
