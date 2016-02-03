@@ -351,11 +351,29 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
+static bool 
+highest_priority (void)
+{
+  int i;
+  for (i = 63; i > thread_current ()->priority; i--) {
+    if (!list_empty(&(ready_queue[i])))
+	return false;
+  }
+  return true;
+}
+
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) 
 {
+  int old = thread_current ()->priority;
   thread_current ()->priority = new_priority;
+
+  if (new_priority < old) {
+    if (!highest_priority()) {
+      thread_yield();
+    }
+  }  
 }
 
 /* Returns the current thread's priority. */
