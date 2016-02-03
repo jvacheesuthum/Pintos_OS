@@ -92,12 +92,10 @@ thread_init (void)
 
   lock_init (&tid_lock);
   
-  printf("thread init called");
   int i;
   for (i = 0; i < 1; i++) {
     list_init (&(ready_queue[i]));
   }
-  printf("queues initialised");
 
   list_init (&all_list);
 
@@ -218,18 +216,14 @@ thread_create (const char *name, int priority,
   thread_unblock (t);
 
   /* if highest priority, run now */
-  printf("in thread create, check if highest");
   struct thread *cur = running_thread ();
   if (t->priority > cur->priority) {
-    printf("will attempt to preempt");
     if (cur->status != THREAD_RUNNING) {
       schedule ();
     } else {
       thread_yield ();
     }
   }
-
-  printf("finished thread create");
 
   return tid;
 }
@@ -267,9 +261,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  printf("thread unblock, will add to queue");
   list_push_back (&(ready_queue[0]), &t->elem);
-  printf("added to queue");
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -340,9 +332,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    printf("in thread yield, will add to queue");
     list_push_back (&(ready_queue[0]), &cur->elem);
-    printf("added to queue");
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -590,7 +580,6 @@ thread_schedule_tail (struct thread *prev)
 static void
 schedule (void) 
 {
-  printf("schedule called");
   struct thread *cur = running_thread ();
   struct thread *next = next_thread_to_run ();
   struct thread *prev = NULL;
@@ -598,10 +587,8 @@ schedule (void)
   ASSERT (intr_get_level () == INTR_OFF);
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
-  printf("asserts passed");
 
   if (cur != next) {
-    printf("cur is not next, new thread to run");
     prev = switch_threads (cur, next);
   }
   thread_schedule_tail (prev);
