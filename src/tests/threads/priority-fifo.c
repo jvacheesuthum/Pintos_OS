@@ -23,7 +23,7 @@ struct simple_thread_data
     int **op;                   /* Output buffer position. */
   };
 
-#define THREAD_CNT 8
+#define THREAD_CNT 16
 #define ITER_CNT 16
 
 static thread_func simple_thread_func;
