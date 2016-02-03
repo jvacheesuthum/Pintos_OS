@@ -117,9 +117,7 @@ sema_up (struct semaphore *sema)
     struct thread *t = list_entry (list_pop_front(&sema->waiters),
 					 struct thread, elem);
     thread_unblock (t);
-    printf("thread unblocked in sema\n");
     if (t->priority > (thread_current ()->priority)) {
-      printf("sema has high priority\n");
       thread_yield ();
     }
   }
