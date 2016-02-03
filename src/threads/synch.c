@@ -117,7 +117,6 @@ sema_up (struct semaphore *sema)
   struct thread *highest = NULL;
   if (!list_empty (&sema->waiters)) {
     //thread_unblock (list_entry (list_pop_front(&sema->waiters), struct thread, elem));
-    printf("should see not null!\n");
     struct list_elem* e;
     e = list_begin (&sema->waiters);
     highest = list_entry (e, struct thread, elem);
@@ -138,6 +137,8 @@ sema_up (struct semaphore *sema)
   }
   sema->value++;
   intr_set_level (old_level);
+  if (highest != NULL)
+    printf("should see not null!\n");
   return highest;
 }
 
