@@ -218,11 +218,7 @@ thread_create (const char *name, int priority,
   /* if highest priority, run now */
   struct thread *cur = running_thread ();
   if (t->priority > cur->priority) {
-    if (cur->status != THREAD_RUNNING) {
-      schedule ();
-    } else {
-      thread_yield ();
-    }
+    thread_yield ();
   }
 
   return tid;
