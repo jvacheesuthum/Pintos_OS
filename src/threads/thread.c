@@ -23,7 +23,7 @@
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
-static struct list *ready_queue[64];
+static struct list ready_queue[64];
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -91,6 +91,11 @@ thread_init (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
+  
+  int i;
+  for (i = 0; i < 64; i++) {
+    list_init (&(ready_queue[i]));
+  }
 
   list_init (&all_list);
 
@@ -99,13 +104,6 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-
-  int i;
-  for (i = 0; i < 64; i++) {
-    ready_queue[i] = malloc(sizeof(struct list));
-    list_init (ready_queue[i]);
-  }
-
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
