@@ -117,7 +117,7 @@ sema_up (struct semaphore *sema)
   struct thread *highest = NULL;
   if (!list_empty (&sema->waiters)) {
     //thread_unblock (list_entry (list_pop_front(&sema->waiters), struct thread, elem));
-
+    printf("should see not null!\n");
     struct list_elem* e;
     e = list_begin (&sema->waiters);
     highest = list_entry (e, struct thread, elem);
@@ -130,6 +130,9 @@ sema_up (struct semaphore *sema)
       e = list_next(e);
     }
     list_remove (&(highest->elem));
+    if (highest->priority > thread_current ()->priority)
+      printf("should see higher!\n");
+
     thread_unblock (highest);
 
   }
@@ -252,7 +255,9 @@ lock_release (struct lock *lock)
   lock->holder = NULL;
   struct thread *t = sema_up (&lock->semaphore);
   if (t != NULL) {
+    printf("not null!");
     if (t->priority > (thread_current ()->priority))
+      printf("higher!");
       thread_yield ();
   }
 }
