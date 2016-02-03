@@ -217,6 +217,7 @@ thread_create (const char *name, int priority,
   /* if highest priority, run now */
   printf("in thread create, check if highest");
   struct thread *cur = running_thread ();
+  printf("why is is stuck here?");
   if (t->priority > cur->priority) {
     printf("will attempt to preempt");
     if (cur->status != THREAD_RUNNING) {
