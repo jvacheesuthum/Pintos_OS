@@ -59,6 +59,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
+struct lock* priority_lock;
 
 static void kernel_thread (thread_func *, void *aux);
 
@@ -104,6 +105,8 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+
+  lock_init(priority_lock);
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -387,22 +390,34 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+  lock_acquire(priority_lock);
+  int pri = thread_current ()->priority;
+  lock_release(prioirty_lock);
+  return pri;
 }
 
-/* Sets the current thread's nice value to NICE. */
+/* Sets the current thread's nice value to NICE. 
+ * Recalculates priority, and may yield current thread*/
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int new_nice) 
 {
-  /* Not yet implemented. */
+  struct thread* cur = thread_current();
+  lock_acquire(priority_lock);
+  cur-> niceness = new_nice;
+  update_recent_cpu_of(cur, NULL);
+  update_priority_of(cur, NULL);
+  lock_release(priority_lock);
+  /*if thread_get_priority is called before thread_yield, it will not return the highest priority thread becuase current thread is not yet highest prioirty*/
+  if(!highest_priority()){
+    thread_yield();
+  }
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return thread_current() -> niceness;
 }
 
 /* Returns 100 times the system load average. */
@@ -428,18 +443,18 @@ calc_priority_of(struct thread* t){
 }
 
 /* Recalculate priority of thread t, move queue, 
- * but DOES NOT YIELD CURRENT THREAD EVER, because it is also used by thread_foreach 
+ * but DOES NOT YIELD OR BLOCK CURRENT THREAD EVER, because it is also used by thread_foreach 
  * which is called when interrupt is turned off.   
  */
 void
-update_priority_of(struct thread* t, void* aux){
+update_priority_of(struct thread* t, void* aux UNUSED){
   t-> priority = calc_priority_of(t);
   list_remove(&t->elem); 
   list_push_back(&(ready_queue[t->priority]), &t->elem);
 }
 
 void 
-update_recent_cpu_of(struct thread* t, void* aux){
+update_recent_cpu_of(struct thread* t, void* aux UNUSED){
   int avg = thread_get_load_avg();  
   //locks here
   int nice = t -> niceness
