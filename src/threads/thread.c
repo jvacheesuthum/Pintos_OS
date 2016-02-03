@@ -91,7 +91,8 @@ thread_init (void)
 
   lock_init (&tid_lock);
 
-  for (int i = 0; i < 64; i++) {
+  int i;
+  for (i = 0; i < 64; i++) {
     list_init (&(ready_queue[i]));
   }
 
@@ -512,7 +513,8 @@ alloc_frame (struct thread *t, size_t size)
 static struct thread *
 next_thread_to_run (void) 
 {
-  for (int i = 63; i >= 0; i--) {
+  int i;
+  for (i = 63; i >= 0; i--) {
     if (!list_empty(&(ready_queue[i]))) {
       return list_entry (list_pop_front (&(ready_queue[i])), struct thread, elem);
     }
