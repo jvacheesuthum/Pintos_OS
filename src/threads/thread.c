@@ -59,7 +59,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
-struct lock* priority_lock;
+struct semaphore* priority_sema;
 
 static void kernel_thread (thread_func *, void *aux);
 
@@ -106,7 +106,7 @@ thread_init (void)
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
 
-  lock_init(priority_lock);
+  sema_init(priority_sema);
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -343,6 +343,22 @@ thread_yield (void)
   intr_set_level (old_level);
 }
 
+void
+thread_yield_up_sema(struct semaphore* sema){
+  struct thread *cur = thread_current ();
+  enum intr_level old_level;
+  
+  ASSERT (!intr_context ());
+
+  old_level = intr_disable ();
+  if (cur != idle_thread) 
+    list_push_back (&(ready_queue[cur->priority]), &cur->elem);
+  cur->status = THREAD_READY;
+  schedule ();
+  sema_up(sema);
+  intr_set_level (old_level);
+}
+
 /* Invoke function 'func' on all threads, passing along 'aux'.
    This function must be called with interrupts off. */
 void
@@ -390,9 +406,9 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
-  lock_acquire(priority_lock);
+  sema_down(priority_sema);
   int pri = thread_current ()->priority;
-  lock_release(prioirty_lock);
+  sema_down(prioirty_sema);
   return pri;
 }
 
@@ -402,14 +418,12 @@ void
 thread_set_nice (int new_nice) 
 {
   struct thread* cur = thread_current();
-  lock_acquire(priority_lock);
+  sema_down(priority_sema);
   cur-> niceness = new_nice;
   update_recent_cpu_of(cur, NULL);
   update_priority_of(cur, NULL);
-  lock_release(priority_lock);
-  /*if thread_get_priority is called before thread_yield, it will not return the highest priority thread becuase current thread is not yet highest prioirty*/
   if(!highest_priority()){
-    thread_yield();
+    thread_yield_up_sema(priority_sema);
   }
 }
 
