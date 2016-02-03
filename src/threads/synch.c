@@ -128,6 +128,7 @@ sema_up (struct semaphore *sema)
       e = list_next(e);
     }
     printf("sema chose a waiter");
+    ASSERT (is_thread (highest));
     thread_unblock (highest);
     if (highest->priority > (thread_current ()->priority)) {
       printf("sema has a very high waiter!");
