@@ -92,10 +92,10 @@ thread_init (void)
   lock_init (&tid_lock);
   
   printf("thread init called");
-  ready_queue = malloc(64* sizeof(struct list));
+  ready_queue = malloc(64* sizeof(struct list*));
   int i;
   for (i = 0; i < 64; i++) {
-    *ready_queue[i] = malloc(sizeof(ready_queue[i]));
+    ready_queue[i] = malloc(sizeof(ready_queue[i]));
     list_init (&(ready_queue[i]));
   }
   printf("queues initialised");
