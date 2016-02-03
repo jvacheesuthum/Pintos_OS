@@ -105,7 +105,7 @@ sema_try_down (struct semaphore *sema)
    and wakes up one thread of those waiting for SEMA, if any.
 
    This function may be called from an interrupt handler. */
-void
+struct thread*
 sema_up (struct semaphore *sema) 
 {
   enum intr_level old_level;
@@ -113,12 +113,14 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
+
+  struct thread *highest = NULL;
   if (!list_empty (&sema->waiters)) {
     //thread_unblock (list_entry (list_pop_front(&sema->waiters), struct thread, elem));
 
     struct list_elem* e;
     e = list_begin (&sema->waiters);
-    struct thread *highest = list_entry (e, struct thread, elem);
+    highest = list_entry (e, struct thread, elem);
     struct thread *t = NULL;
     while (e != list_end (&sema->waiters)) {
       t = list_entry (e, struct thread, elem);
@@ -129,12 +131,11 @@ sema_up (struct semaphore *sema)
     }
     list_remove (&(highest->elem));
     thread_unblock (highest);
-  /*  if (highest->priority > (thread_current ()->priority))
-      thread_yield ();
-*/
+
   }
   sema->value++;
   intr_set_level (old_level);
+  return highest;
 }
 
 static void sema_test_helper (void *sema_);
@@ -249,7 +250,11 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
 
   lock->holder = NULL;
-  sema_up (&lock->semaphore);
+  struct thread *t = sema_up (&lock->semaphore);
+  if (t != NULL) {
+    if (t->priority > (thread_current ()->priority))
+      thread_yield ();
+  }
 }
 
 /* Returns true if the current thread holds LOCK, false
