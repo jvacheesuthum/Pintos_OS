@@ -22,7 +22,7 @@
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
-static struct list ready_queue[64];
+static struct list *ready_queue;
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -92,9 +92,10 @@ thread_init (void)
   lock_init (&tid_lock);
   
   printf("thread init called");
+  ready_queue = malloc(64* sizeof(struct list));
   int i;
   for (i = 0; i < 64; i++) {
-    ready_queue[i] = malloc(sizeof(ready_queue[i]));
+    ready_queue[i] = (struct list) malloc(sizeof(struct list));
     list_init (&(ready_queue[i]));
   }
   printf("queues initialised");
