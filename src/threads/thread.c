@@ -107,7 +107,6 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-  printf("before sema init priority");
   sema_init(&priority_sema, 1);
 }
 
@@ -481,7 +480,8 @@ update_priority_of(struct thread* t, void* aux UNUSED){
 //any calls to this function should operate priority_sema
 void 
 update_recent_cpu_of(struct thread* t, void* aux UNUSED){
-  int avg = (int) (load_avg * 100) ;  
+
+  int avg = (int) (load_avg * 100 / FP_CONV) ;  
   int nice = t -> niceness;
   nice *= FP_CONV;
   int latest = t-> recent_cpu;
