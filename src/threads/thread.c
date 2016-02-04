@@ -59,6 +59,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
+int load_avg;
 struct semaphore priority_sema;
 
 static void kernel_thread (thread_func *, void *aux);
@@ -498,18 +499,19 @@ update_recent_cpu_of(struct thread* t, void* aux UNUSED){
   // any calls to this function should operate priority_sema
 void
 update_load_avg(void){
-  int ready_threads;
+  int ready_threads = 0;
   int i;
-  for (i = 0; i < 64; i++) {
+  for (i = 63; i > 0; i--) {
 	ready_threads += list_size(&ready_queue[i]);
   }
+  printf("ready threads excluding current = %i", ready_threads);
+
   if (running_thread()-> status == THREAD_RUNNING) {
 	ready_threads += 1;
   }
-  int first_fraction = FP_CONV * (59/60);
-//  int avg = FP_CONV * load_avg;
-  load_avg = ((int64_t) first_fraction)*load_avg/FP_CONV + FP_CONV/60*(ready_threads);
-  //load_avg /= FP_CONV;     //this converts back to int, round twds 0
+  printf("ready threads = %i", ready_threads);
+  load_avg = (59*load_avg)/60 + (FP_CONV/60)*(ready_threads);
+  printf("load avg= %i\n", load_avg);
 }
 
 /* ----------------------------------------------------------------------------- */
@@ -634,6 +636,7 @@ next_thread_to_run (void)
   int i;
   for (i = 63; i >= 0; i--) {
     if (!list_empty(&(ready_queue[i]))) {
+     // printf("popping at list %i\n", i);
       return list_entry (list_pop_front (&(ready_queue[i])), struct thread, elem);
     }
   }
