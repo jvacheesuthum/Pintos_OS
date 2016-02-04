@@ -443,6 +443,7 @@ thread_get_nice (void)
 int
 thread_get_load_avg (void) 
 {
+  //load avg is stored as fixed point format so div by conv to get value
   sema_down(&priority_sema);
   int avg = load_avg;
   sema_up(&priority_sema);
@@ -453,17 +454,18 @@ thread_get_load_avg (void)
 int
 thread_get_recent_cpu (void) 
 {
+  //since recent is stored in foxed point format - has to div by conv to get real value
   sema_down(&priority_sema);
   int recent = thread_current()-> recent_cpu;
   sema_up(&priority_sema);
-  return 100 * recent;
+  return (int) (100 * recent/FP_CONV);
 }
 
 /* ------------------- Some extra functions for TASK1 ----------------------- */
 /* Must be called by a function that is synchronized */
 int
 calc_priority_of(struct thread* t){
-  return PRI_MAX - (t-> recent_cpu)/4 - (t-> niceness)/2;
+  return PRI_MAX - ((t-> recent_cpu)/FP_CONV)/4 - (t-> niceness)/2;
 }
 
 /* Recalculate priority of thread t, move queue, 
@@ -481,13 +483,15 @@ update_priority_of(struct thread* t, void* aux UNUSED){
 //any calls to this function should operate priority_sema
 void 
 update_recent_cpu_of(struct thread* t, void* aux UNUSED){
-  int avg = (int) (load_avg * 100) ;  
+  int avg = load_avg ;  
   int nice = t -> niceness;
   nice *= FP_CONV;
   int latest = t-> recent_cpu;
-  int first_part = FP_CONV * (2*avg)/(2*avg + 1);
-  t-> recent_cpu = (((int64_t) first_part) * latest + nice) / FP_CONV; //latest is not in fp format here
-  
+  //fixed point arith for (2*load_avg )/(2*load_avg + 1)
+  int calc_so_far = ((int64_t) (2*avg) * FP_CONV)/(2*avg + 1*FP_CONV);
+  //fp arith for (2*load_avg )/(2*load_avg + 1) * recent 
+  calc_so_far  = (((int64_t) calc_so_far) * latest/FP_CONV); 
+  t -> recent_cpu = calc_so_far + nice;
 }
 
   // ONLY happens when TIMER_FREQ == 0 -> called in timer.c
