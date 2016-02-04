@@ -124,6 +124,12 @@ struct lock_list
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
 
+void add_lock (struct lock *l);
+void add_locked_thread (struct lock *l);
+bool check_thread_in_locks (struct thread *t);
+//bool check_sema_in_locks (struct semaphore *);
+//struct lock *get_sema_lock (struct semaphore *);
+
 void thread_init (void);
 void thread_start (void);
 
@@ -154,5 +160,7 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+
 
 #endif /* threads/thread.h */
