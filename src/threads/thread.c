@@ -89,6 +89,7 @@ static tid_t allocate_tid (void);
 void
 thread_init (void) 
 {
+  load_avg = 0;
   thread_mlfqs = true;
   ASSERT (intr_get_level () == INTR_OFF);
 
@@ -106,7 +107,6 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-  printf("before sema init priority");
   sema_init(&priority_sema, 1);
 }
 
@@ -349,9 +349,7 @@ thread_yield_up_sema(struct semaphore* sema){
   struct thread *cur = thread_current ();
   enum intr_level old_level;
   
-  printf("before !intr_context assert thread_yield_up_sema  \n");
   ASSERT (!intr_context ());
-  printf("after !intr_context assert thread_yield_up_sema  \n");
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
