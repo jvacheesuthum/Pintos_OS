@@ -17,6 +17,8 @@ bool sema_try_down (struct semaphore *);
 void sema_up (struct semaphore *);
 void sema_self_test (void);
 
+void thread_yield_up_sema(struct semaphore*); /*TASK1 mlfqs: to resolve priority_lock problem*/
+
 /* Lock. */
 struct lock 
   {
