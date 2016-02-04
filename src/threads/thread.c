@@ -60,8 +60,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
-static struct list lock_list;
-static struct list locked_thread_list;
+static struct list lock_waiters_list; 
 
 static void kernel_thread (thread_func *, void *aux);
 
@@ -74,12 +73,50 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-/*static void add_lock (struct lock *l);
-static void add_locked_thread (struct lock *l);
-static bool check_thread_in_locks (struct thread *t);*/
-//static bool check_sema_in_locks (struct semaphore *sema);
-//static struct lock* get_sema_lock (struct semaphore *sema);
 
+
+void
+push_ready_queue (int priority, struct thread *thread)
+{
+  list_push_back (&ready_queue[priority], &thread->elem);
+}
+void
+add_locks (struct lock_waiters *l)
+{
+  list_push_back (&lock_waiters_list, &l->elem);
+}
+
+void
+remove_lock_list (struct lock *l)
+{
+  struct lock_waiters *list_lock = NULL;
+  struct list_elem *e = list_begin (&lock_waiters_list);
+  while (e != list_end (&lock_waiters_list)) {
+    list_lock
+      = list_entry (e, struct lock_waiters, elem);
+    if (l == list_lock->lock) {
+      break;
+    }
+    e = list_next(e);
+  }
+  list_remove (&list_lock->elem);
+}
+
+//returns the waiters list from a lock_waiters which matches the lock l
+struct list *
+get_locks (struct lock *l)
+{
+  struct list_elem *e = list_begin (&lock_waiters_list);
+  while (e != list_end (&lock_waiters_list)) {
+    struct lock_waiters *list_lock
+      = list_entry (e, struct lock_waiters, elem);
+    if (l == list_lock->lock) {
+      return &list_lock->waiters;
+    }
+    e = list_next(e);
+  }
+  return NULL;
+}
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -93,77 +130,6 @@ static bool check_thread_in_locks (struct thread *t);*/
 
    It is not safe to call thread_current() until this function
    finishes. */
-
-void
-add_lock (struct lock *l)
-{
-  list_push_front (&lock_list, &l->elem);
-}
-
-/* insert lock_list struct into locked_thread_list in order*/
-void
-add_locked_thread (struct lock *l)
-{
-  struct list_elem* e = list_begin (&locked_thread_list);
-  while (e != list_end(&locked_thread_list)) {
-    if (thread_current ()->priority > 
-    ((list_entry (e, struct lock_list, elem))->t)->priority) {
-      break;
-    }
-    e = list_next(e);
-  }
-  struct lock_list *new_lock;
-  new_lock->l = l;
-  new_lock->t = thread_current ();
-  list_insert (e, &new_lock->elem);
-}
-
-bool
-check_thread_in_locks (struct thread *t)
-{
-  struct list_elem* e = list_begin (&lock_list);
-  while (e != list_end(&lock_list)) {
-    struct list waiters 
-      = (&(list_entry (e, struct lock, elem))->semaphore)->waiters;
-    struct list_elem* waiter = list_begin (&waiters);
-    while (waiter != list_end (&waiters)) {
-      if(t == (list_entry (waiter, struct thread, elem))) {
-        return true;
-      }
-      waiter = list_next(waiter);
-    }
-    e = list_next(e);
-  }
-  return false;
-}
-
-bool
-check_sema_in_locks (struct semaphore *sema)
-{
-  struct list_elem* e = list_begin (&lock_list);
-  while (e != list_end(&lock_list)) {
-    if (sema == &((list_entry (e, struct lock, elem))->semaphore)) {
-      return true;
-    }
-    e = list_next(e);
-  }
-  return false;
-}
-
-//returns the lock that holds the semaphore
-struct lock *
-get_sema_lock (struct semaphore *sema)
-{
-  struct list_elem* e = list_begin (&lock_list);
-  while (e != list_end(&lock_list)) {
-    if (sema == &((list_entry (e, struct lock, elem))->semaphore)) {
-      return list_entry (e, struct lock, elem);
-    }
-    e = list_next(e);
-  }
-  return NULL;
-}
-
 void
 thread_init (void) 
 {
@@ -178,16 +144,14 @@ thread_init (void)
 
   list_init (&all_list);
 
-  list_init (&lock_list);
-  list_init (&locked_thread_list);
-
+  list_init (&lock_waiters_list);
+ 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
 }
-
 
 /* Starts preemptive thread scheduling by enabling interrupts.
    Also creates the idle thread. */
@@ -273,6 +237,7 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+  list_init(&t->prev_priority_list);
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -304,11 +269,6 @@ thread_create (const char *name, int priority,
     thread_yield ();
   }
 
-  /*Initializes priority list for donations */
-  list_init (&(t->prev_priorities));
-  struct prev_priority *original;
-  original->priority = priority;
-  list_push_front (&(t->prev_priorities), &(original->elem));
   return tid;
 }
 
@@ -617,35 +577,12 @@ static struct thread *
 next_thread_to_run (void) 
 {
   int i;
-  struct thread *highestP_readythread;
   for (i = 63; i >= 0; i--) {
     if (!list_empty(&(ready_queue[i]))) {
-      highestP_readythread = 
-        list_entry (list_front (&(ready_queue[i])), struct thread, elem);
+      return list_entry (list_pop_front (&(ready_queue[i])), struct thread, elem);
     }
   }
-  struct list_elem* e = list_begin (&locked_thread_list);
-  struct lock_list *lk;
-  if (!list_empty (&locked_thread_list)) {
-    lk = list_entry (e, struct lock_list, elem);
-  }
-  while ((lk->t)->priority >= highestP_readythread->priority
-          && e != list_end(&locked_thread_list)) {
-    struct thread *holder = (lk->l)->holder;
-    if (holder != NULL && (holder->priority < (lk->t)->priority)) {
-      struct prev_priority *p;
-      p->priority = holder->priority;
-      list_push_back (&(holder->prev_priorities), &p->elem);
-      holder->priority = (lk->t)->priority;
-      return holder;
-    } else {
-      e = list_next(e);
-      lk = list_entry (e, struct lock_list, elem);
-    }
-  }
-  if (highestP_readythread != NULL) {
-    return list_entry (list_pop_front (&(ready_queue[i])), struct thread, elem);
-  }
+
   return idle_thread;
 }
 

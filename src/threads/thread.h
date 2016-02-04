@@ -101,34 +101,25 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
-    struct list prev_priorities;
+    struct list prev_priority_list;
   };
 
-//priority held by thread (used as a list history of priorities)
+struct lock_waiters 
+  {
+    struct list_elem elem;
+    struct lock *lock;
+    struct list waiters;  
+  };
+
 struct prev_priority
   {
     struct list_elem elem;
     int priority;
   };
-
-//Thread t is waiting on lock l
-struct lock_list
-  {
-    struct list_elem elem;
-    struct thread *t;
-    struct lock *l;
-  };
-
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
-
-void add_lock (struct lock *l);
-void add_locked_thread (struct lock *l);
-bool check_thread_in_locks (struct thread *t);
-//bool check_sema_in_locks (struct semaphore *);
-//struct lock *get_sema_lock (struct semaphore *);
 
 void thread_init (void);
 void thread_start (void);
@@ -161,6 +152,8 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-
-
+void push_ready_queue (int, struct thread *);
+void add_locks (struct lock_waiters *);
+void remove_lock_list (struct lock *);
+struct list *get_locks (struct lock *);
 #endif /* threads/thread.h */
