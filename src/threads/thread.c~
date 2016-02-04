@@ -553,7 +553,7 @@ next_thread_to_run (void)
   if (!list_empty (&locked_thread_list)) {
     lk = list_entry (e, struct lock_list, elem);
   }
-  while ((lk->t)->priority >= highestP_readythread->priority
+  while ((lk->thread)->priority >= highestP_readythread->priority
           && e != list_end(&locked_thread_list)) {
     struct thread *holder = (lk->l)->holder;
     if (holder != NULL && (holder->priority < (lk->t)->priority)) {
