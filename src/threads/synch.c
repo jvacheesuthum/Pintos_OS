@@ -71,14 +71,16 @@ sema_down (struct semaphore *sema)
       //insert in order
       struct list_elem* e = list_begin (&sema->waiters);
       while (e != list_end(&sema->waiters)) {
-	if (thread_current ()->priority > 
-	    (list_entry (e, struct thread, elem))->priority) {
-	  break;
-	}
+        if (thread_current ()->priority > 
+        (list_entry (e, struct thread, elem))->priority) {
+          break;
+        }
         e = list_next(e);
       }
       list_insert (e, &thread_current ()->elem);
-
+      if (check_sema_in_locks (sema)) {
+        add_locked_thread (get_sema_lock (sema));
+      }
       thread_block ();
     }
   sema->value--;
@@ -110,7 +112,6 @@ sema_try_down (struct semaphore *sema)
 
   return success;
 }
-
 /* Up or "V" operation on a semaphore.  Increments SEMA's value
    and wakes up one thread of those waiting for SEMA, if any.
 
@@ -197,6 +198,8 @@ lock_init (struct lock *lock)
 
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
+
+  add_lock (&lock);
 }
 
 /* Acquires LOCK, sleeping until it becomes available if
@@ -217,23 +220,19 @@ lock_acquire (struct lock *lock)
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
 
-  (&(thread_current()->prev_priority))
-  thread_current()->priority = max_priority(&(&lock->semaphore)->waiters);
+/*  struct prev_priority *prev;
+  prev->priority = thread_get_priority ();
+  list_push_back (&(thread_current()->prev_priorities), 
+    &prev->elem); */
+
+//  int max = max_priority(&(&lock->semaphore)->waiters);
+/*  struct list_elem* e = list_begin (&((&lock->semaphore)->waiters));
+  int max = (list_entry (e, struct thread, elem))->priority;
+  if (max > thread_get_priority (void)) {
+    thread_set_priority (max);
+  } */
 }
 
-int
-max_priority(struct list waiters)
-{
-  struct list_elem* e = list_begin (&waiters);
-  int priority = (list_entry (e, struct thread, elem))->priority;
-  while (e != list_end(&sema->waiters)) {
-    if (priority < 
-      (list_entry (e, struct thread, elem))->priority) {
-      priority = (list_entry (e, struct thread, elem))->priority);
-    }
-    e = list_next(e);
-  }
-}
 /* Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
    thread.
@@ -266,7 +265,14 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
 
   lock->holder = NULL;
+
+  struct prev_priority *prev = list_entry (list_pop_back (
+          &(thread_current()->prev_priorities)),
+         struct prev_priority, elem);
+  thread_current ()->priority = prev->priority;
+
   sema_up (&lock->semaphore);
+
 }
 
 /* Returns true if the current thread holds LOCK, false

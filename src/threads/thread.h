@@ -100,6 +100,23 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+    struct list prev_priorities;
+  };
+
+//priority held by thread (used as a list history of priorities)
+struct prev_priority
+  {
+    struct list_elem elem;
+    int priority;
+  };
+
+//Thread t is waiting on lock l
+struct lock_list
+  {
+    struct list_elem elem;
+    struct thread *t;
+    struct lock *l;
   };
 
 /* If false (default), use round-robin scheduler.

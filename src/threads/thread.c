@@ -60,6 +60,9 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
+static struct list lock_list;
+static struct list locked_thread_list;
+
 static void kernel_thread (thread_func *, void *aux);
 
 static void idle (void *aux UNUSED);
@@ -99,12 +102,16 @@ thread_init (void)
 
   list_init (&all_list);
 
+  list_init (&lock_list);
+  list_init (&locked_thread_list);
+
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
 }
+
 
 /* Starts preemptive thread scheduling by enabling interrupts.
    Also creates the idle thread. */
@@ -221,6 +228,11 @@ thread_create (const char *name, int priority,
     thread_yield ();
   }
 
+  /*Initializes priority list for donations */
+  list_init (&(t->prev_priorities));
+  struct prev_prioritiy original;
+  original->priority = priority;
+  list_push_front (&(t->prev_priorities), &(original->elem));
   return tid;
 }
 
@@ -529,12 +541,35 @@ static struct thread *
 next_thread_to_run (void) 
 {
   int i;
+  struct thread *highestP_readythread;
   for (i = 63; i >= 0; i--) {
     if (!list_empty(&(ready_queue[i]))) {
-      return list_entry (list_pop_front (&(ready_queue[i])), struct thread, elem);
+      highestP_readythread = 
+        list_entry (list_front (&(ready_queue[i])), struct thread, elem);
     }
   }
-
+  struct list_elem* e = list_begin (&locked_thread_list);
+  struct lock_list *l;
+  if (!list_empty (&locked_thread_list)) {
+    l = list_entry (e, struct lock_list, elem);
+  }
+  while ((l->thread)->priority >= highestP_readythread->priority
+          && e != list_end(&locked_thread_list)) {
+    struct thread *holder = (l->lock)->holder;
+    if (holder != NULL && (holder->priority < (l->thread)->priority)) {
+      struct prev_priority *p;
+      prev_priority->priority = holder->priority;
+      list_push_back (&(holder->prev_priorities), &prev_priority->elem);
+      holder->priority = (l->thread)->priority;
+      return holder;
+    } else {
+      e = list_next(e);
+      l = list_entry (e, struct lock_list, elem);
+    }
+  }
+  if (highestP_readythread != NULL) {
+    return list_entry (list_pop_front (&(ready_queue[i])), struct thread, elem);
+  }
   return idle_thread;
 }
 
@@ -625,3 +660,72 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+static void
+add_lock (struct lock *l)
+{
+  list_push_front (&lock_list, l);
+}
+
+/* insert lock_list struct into locked_thread_list in order*/
+static void
+add_locked_thread (struct lock *l)
+{
+  struct list_elem* e = list_begin (&locked_thread_list);
+  while (e != list_end(&locked_thread_list)) {
+    if (thread_current ()->priority > 
+    ((list_entry (e, struct lock_list, elem))->t)->priority) {
+      break;
+    }
+    e = list_next(e);
+  }
+  struct lock_list *new_lock;
+  new_lock->l = l;
+  new_lock->t = &thread_current ();
+  list_insert (e, new_lock->elem);
+}
+
+static bool
+check_thread_in_locks (struct thread *t)
+{
+  struct list_elem* e = list_begin (&lock_list);
+  while (e != list_end(&lock_list)) {
+    struct list waiters 
+      = ((list_entry (e, struct lock, elem))->semaphore)->waiters;
+    struct list_elem* waiter = list_begin (&waiters);
+    while (waiter != list_end (&waiters)) {
+      if(t == &(list_entry (waiter, struct thread, elem))) {
+        return true;
+      }
+      waiter = list_next(waiter);
+    }
+    e = list_next(e);
+  }
+  return false;
+}
+
+static bool
+check_sema_in_locks (struct semaphore *sema)
+{
+  struct list_elem* e = list_begin (&lock_list);
+  while (e != list_end(&lock_list)) {
+    if (sema == &((list_entry (e, struct lock, elem))->semaphore)) {
+      return true;
+    }
+    e = list_next(e);
+  }
+  return false;
+}
+
+//returns the lock that holds the semaphore
+static struct lock *
+get_sema_lock (struct semaphore *sema)
+{
+  struct list_elem* e = list_begin (&lock_list);
+  while (e != list_end(&lock_list)) {
+    if (sema == &((list_entry (e, struct lock, elem))->semaphore)) {
+      return list_entry (e, struct lock, elem);
+    }
+    e = list_next(e);
+  }
+}
