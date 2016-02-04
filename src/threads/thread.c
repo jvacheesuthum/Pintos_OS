@@ -349,7 +349,9 @@ thread_yield_up_sema(struct semaphore* sema){
   struct thread *cur = thread_current ();
   enum intr_level old_level;
   
+  printf("before !intr_context assert thread_yield_up_sema  \n");
   ASSERT (!intr_context ());
+  printf("after !intr_context assert thread_yield_up_sema  \n");
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
@@ -480,7 +482,7 @@ update_priority_of(struct thread* t, void* aux UNUSED){
 //any calls to this function should operate priority_sema
 void 
 update_recent_cpu_of(struct thread* t, void* aux UNUSED){
-  int avg = thread_get_load_avg();  
+  int avg = load_avg * 100;  
   int nice = t -> niceness;
   nice *= FP_CONV;
   int latest = t-> recent_cpu;
