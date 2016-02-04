@@ -59,7 +59,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
-struct semaphore* priority_sema;
+struct semaphore priority_sema;
 
 static void kernel_thread (thread_func *, void *aux);
 
@@ -89,6 +89,7 @@ static tid_t allocate_tid (void);
 void
 thread_init (void) 
 {
+  thread_mlfqs = true;
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
@@ -105,8 +106,8 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-
-  sema_init(priority_sema, 1);
+  printf("before sema init priority");
+  sema_init(&priority_sema, 1);
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -406,9 +407,9 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
-  sema_down(priority_sema);
+  sema_down(&priority_sema);
   int pri = thread_current ()->priority;
-  sema_up(priority_sema);
+  sema_up(&priority_sema);
   return pri;
 }
 
@@ -418,12 +419,12 @@ void
 thread_set_nice (int new_nice) 
 {
   struct thread* cur = thread_current();
-  sema_down(priority_sema);
+  sema_down(&priority_sema);
   cur-> niceness = new_nice;
   update_recent_cpu_of(cur, NULL);
   update_priority_of(cur, NULL);
   if(!highest_priority()){
-    thread_yield_up_sema(priority_sema);
+    thread_yield_up_sema(&priority_sema);
   }
 }
 
@@ -431,9 +432,9 @@ thread_set_nice (int new_nice)
 int
 thread_get_nice (void) 
 {
-  sema_down(priority_sema);
+  sema_down(&priority_sema);
   int nice = thread_current() -> niceness;
-  sema_up(priority_sema);
+  sema_up(&priority_sema);
   return nice;
 }
 
@@ -441,9 +442,9 @@ thread_get_nice (void)
 int
 thread_get_load_avg (void) 
 {
-  sema_down(priority_sema);
+  sema_down(&priority_sema);
   int avg = load_avg;
-  sema_up(priority_sema);
+  sema_up(&priority_sema);
   return 100 * avg;
 }
 
@@ -451,9 +452,9 @@ thread_get_load_avg (void)
 int
 thread_get_recent_cpu (void) 
 {
-  sema_down(priority_sema);
+  sema_down(&priority_sema);
   int recent = thread_current()-> recent_cpu;
-  sema_up(priority_sema);
+  sema_up(&priority_sema);
   return 100 * recent;
 }
 
