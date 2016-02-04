@@ -191,9 +191,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
       update_load_avg();
       thread_foreach(&update_recent_cpu_of, NULL);
       thread_foreach(&update_priority_of, NULL);
-      if(!highest_priority()){
-        thread_yield();
-      }
     }
     intr_set_level(old_level);
   }
