@@ -60,8 +60,6 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
-static struct list lock_waiters_list; 
-
 static void kernel_thread (thread_func *, void *aux);
 
 static void idle (void *aux UNUSED);
@@ -80,43 +78,37 @@ push_ready_queue (int priority, struct thread *thread)
 {
   list_push_back (&ready_queue[priority], &thread->elem);
 }
-void
-add_locks (struct lock_waiters *l)
-{
-  list_push_back (&lock_waiters_list, &l->elem);
-}
 
 void
-remove_lock_list (struct lock *l)
+donate_priority (struct lock *lock, int priority)
 {
-  struct lock_waiters *list_lock = NULL;
-  struct list_elem *e = list_begin (&lock_waiters_list);
-  while (e != list_end (&lock_waiters_list)) {
-    list_lock
-      = list_entry (e, struct lock_waiters, elem);
-    if (l == list_lock->lock) {
-      break;
+  sema_down (&thread_current ()->priority_change);
+  struct lock_priority new_lockP;
+  new_lockP.lock = lock;
+  new_lockP.priority = priority;
+  
+  struct list_elem *e = list_begin (thread_current ()->lock_list);
+  struct lock_priority *p = list_entry (e, struct lock_priority, elem);
+  while (e != list_end (thread_current ()->lock_list)) {
+    if (lock == p->lock) {
+    	if (priority > p->priority) {
+     	  p->priority = priority;
+	}
+	break;
     }
     e = list_next(e);
+    p = list_entry (e, struct lock_priority, elem);
   }
-  list_remove (&list_lock->elem);
+//  list_insert (e, &new_lock->elem);
+  ASSERT (priority > thread_current ()->base_priority);
+  *e = list_begin (thread_current ()->lock_list);
+  *p = list_entry (e, struct lock_priority, elem);
+  (lock->holder)->priority = p->priority;
+  
+  sema_up (&thread_current ()->priority_change);
 }
 
-//returns the waiters list from a lock_waiters which matches the lock l
-struct list *
-get_locks (struct lock *l)
-{
-  struct list_elem *e = list_begin (&lock_waiters_list);
-  while (e != list_end (&lock_waiters_list)) {
-    struct lock_waiters *list_lock
-      = list_entry (e, struct lock_waiters, elem);
-    if (l == list_lock->lock) {
-      return &list_lock->waiters;
-    }
-    e = list_next(e);
-  }
-  return NULL;
-}
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -237,7 +229,9 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
-  list_init(&t->prev_priority_list);
+  sema_init (&t->priority_change, 1);
+  list_init (t->lock_list);
+  t->base_priority = priority;
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
