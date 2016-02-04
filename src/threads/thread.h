@@ -107,7 +107,7 @@ struct thread
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
-extern bool thread_mlfqs;
+extern bool thread_mlfqs ;
 
 void thread_init (void);
 void thread_start (void);
@@ -139,7 +139,7 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-int load_avg = 0;  //******or initialise at system boot ?
+static int load_avg = 0;  //******or initialise at system boot ?
 
 int calc_priority_of (struct thread* t);
 void update_recent_cpu_of (struct thread* t, void* aux);
