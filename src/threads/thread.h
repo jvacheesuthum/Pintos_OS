@@ -141,7 +141,9 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 int load_avg = 0;  //******or initialise at system boot ?
 
-int calc_priority_of(struct thread* t);
-void update_recent_cpu_of(struct thread* t, void* aux);
-void update_priority_of(struct thread* t, void* aux);
+int calc_priority_of (struct thread* t);
+void update_recent_cpu_of (struct thread* t, void* aux);
+void update_priority_of (struct thread* t, void* aux);
+void update_load_avg (void);
+bool highest_priority (void);
 #endif /* threads/thread.h */

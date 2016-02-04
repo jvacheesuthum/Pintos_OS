@@ -106,7 +106,7 @@ thread_init (void)
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
 
-  sema_init(priority_sema);
+  sema_init(priority_sema, 1);
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -197,7 +197,7 @@ thread_create (const char *name, int priority,
   if(thread_mlfqs){
     t-> niceness = thread_get_nice(); 
     t-> recent_cpu = thread_get_recent_cpu();
-    t-> priority = calc_pri_of(t); 
+    t-> priority = calc_priority_of(t); 
   }
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -377,7 +377,7 @@ thread_foreach (thread_action_func *func, void *aux)
 }
 
 /* Return true if the current thread has highest priority */
-static bool 
+bool 
 highest_priority (void)
 {
   int i;
@@ -408,7 +408,7 @@ thread_get_priority (void)
 {
   sema_down(priority_sema);
   int pri = thread_current ()->priority;
-  sema_up(prioirty_sema);
+  sema_up(priority_sema);
   return pri;
 }
 
@@ -461,7 +461,7 @@ thread_get_recent_cpu (void)
 /* Must be called by a function that is synchronized */
 int
 calc_priority_of(struct thread* t){
-  return PRIMAX - (t-> recent_cpu)/4 - (t-> niceness)/2;
+  return PRI_MAX - (t-> recent_cpu)/4 - (t-> niceness)/2;
 }
 
 /* Recalculate priority of thread t, move queue, 
@@ -494,7 +494,8 @@ update_recent_cpu_of(struct thread* t, void* aux UNUSED){
 void
 update_load_avg(void){
   int ready_threads;
-  for (int i = 0; i < 64; i++) {
+  int i;
+  for (i = 0; i < 64; i++) {
 	ready_threads += list_size(&ready_queue[i]);
   }
   if (running_thread()-> status == THREAD_RUNNING) {
