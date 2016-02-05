@@ -501,12 +501,13 @@ void
 update_load_avg(void){
   int ready_threads = 0;
   int i;
-  for (i = 63; i > 0; i--) {
+  for (i = 63; i >= 0; i--) {
 	ready_threads += list_size(&ready_queue[i]);
   }
   printf("ready threads excluding current = %i", ready_threads);
 
-  if (running_thread()-> status == THREAD_RUNNING) { // will idle thread also have status THREAD_RUNNING?
+
+  if (strcmp(thread_current()-> name,"idle") != 0) {
 	ready_threads += 1;
   }
   printf("ready threads = %i", ready_threads);

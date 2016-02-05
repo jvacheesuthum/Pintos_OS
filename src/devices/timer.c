@@ -190,8 +190,9 @@ timer_interrupt (struct intr_frame *args UNUSED)
     if(timer_ticks() % TIMER_FREQ == 0){
       printf("one more second load_avg=%i\n",load_avg);
       update_load_avg();
+      printf("current thread = %s", thread_current() -> name);
       thread_foreach(&update_recent_cpu_of, NULL);
-      thread_foreach(&update_priority_of, NULL);
+      //thread_foreach(&update_priority_of, NULL);
     }
     intr_set_level(old_level);
   }
