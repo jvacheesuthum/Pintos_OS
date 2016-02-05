@@ -144,14 +144,6 @@ insert_lock_priority (struct thread *t, struct lock_priority *lockP)
   list_insert(e, &lockP->elem);
   printf("list size After: %i\n", list_size (&t->lock_list));
    
-  int i = 0;
-  struct list_elem *testBegin = list_begin (&((lockP->lock)->holder)->lock_list);
-  while (testBegin != list_end (&((lockP->lock)->holder)->lock_list)) {
-    struct lock_priority *testLP = list_entry (testBegin, struct lock_priority, elem);
-    printf ("List <%i>: %i\n", i, testLP->priority);
-    i++;
-    testBegin = list_next(testBegin);
-  }
 
   printf("After Insert into list of lock_priority\n");
 }
@@ -560,7 +552,7 @@ kernel_thread (thread_func *function, void *aux)
   function (aux);       /* Execute the thread function. */
   thread_exit ();       /* If function() returns, kill the thread. */
 }
-
+
 /* Returns the running thread. */
 struct thread *
 running_thread (void) 

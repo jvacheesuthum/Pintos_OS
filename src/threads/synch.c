@@ -132,9 +132,11 @@ sema_up (struct semaphore *sema)
   }
   sema->value++;
   intr_set_level (old_level);
-  if (highest != NULL) {
-    if (highest->priority > (thread_current ()->priority))
-      thread_yield ();
+  if (!intr_context()) {
+    if (highest != NULL) {
+      if (highest->priority > (thread_current ()->priority))
+        thread_yield ();
+    }
   }
 }
 
@@ -227,11 +229,12 @@ lock_acquire (struct lock *lock)
     printf("ELSE in lock_acquire: %i\n", new_lockP.priority);
     insert_lock_priority (thread_current(), &new_lockP);
     printf("ELSE in lock_acquire: %i\n", new_lockP.priority);
+
   }
   sema_down(&lock->semaphore);
   lock->holder = thread_current ();
-  printf("<3>: %i\n", list_size(&thread_current()->lock_list));
-  struct list_elem *e = list_begin (&thread_current()->lock_list);
+  printf("<3>: %i\n", list_size(&(thread_current()->lock_list)));
+  struct list_elem *e = list_begin (&(thread_current()->lock_list));
   struct lock_priority *p = list_entry (e, struct lock_priority, elem);
   printf("<4>: %i\n", p->priority);
 }
@@ -268,12 +271,11 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
    
-
   printf("<1>: %i\n", list_size(&thread_current()->lock_list));
-  struct list_elem *e = list_begin (&thread_current ()->lock_list);
+  struct list_elem *e = list_begin (&(thread_current ()->lock_list));
   struct lock_priority *p = list_entry (e, struct lock_priority, elem);
+  if (p->lock == lock) printf("HERE\n");
   printf("<2>: %i\n", p->priority);
-
  
   lock->holder = NULL;
   bool donated = false;
