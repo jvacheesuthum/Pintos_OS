@@ -195,9 +195,9 @@ timer_interrupt (struct intr_frame *args UNUSED)
       printf("recent_cpu = %i \n", thread_current()-> recent_cpu);
       printf("        niceness = %i, ", thread_current()->niceness);
       update_load_avg();
-      printf("recent_cpu before = %i \n", thread_current()-> recent_cpu);
+//      printf("recent_cpu before = %i \n", thread_current()-> recent_cpu);
       thread_foreach(&update_recent_cpu_of, NULL);
-      printf("recent_cpu after1 = %i \n", thread_current()-> recent_cpu);
+  //    printf("recent_cpu after1 = %i \n", thread_current()-> recent_cpu);
       thread_foreach(&update_priority_of, NULL);
     }
     intr_set_level(old_level);

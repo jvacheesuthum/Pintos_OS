@@ -229,6 +229,7 @@ thread_create (const char *name, int priority,
   /* if highest priority, run now */
   struct thread *cur = running_thread ();
   if (t->priority > cur->priority) {
+    printf("YIELDDDDDDD\n");
     thread_yield ();
   }
 
@@ -447,7 +448,7 @@ thread_get_load_avg (void)
   sema_down(&priority_sema);
   int avg = load_avg;
   sema_up(&priority_sema);
-  return (int) (100 * avg /FP_CONV);
+  return (100*avg + FP_CONV / 2) / FP_CONV;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -458,7 +459,7 @@ thread_get_recent_cpu (void)
   sema_down(&priority_sema);
   int recent = thread_current()-> recent_cpu;
   sema_up(&priority_sema);
-  return (int) ((100 * recent)/FP_CONV);
+  return (100*recent + FP_CONV / 2) / FP_CONV;
 }
 
 /* ------------------- Some extra functions for TASK1 ----------------------- */
@@ -466,9 +467,6 @@ thread_get_recent_cpu (void)
 int
 calc_priority_of(struct thread* t){
   int calc_pri = PRI_MAX - ((t-> recent_cpu)/FP_CONV)/4 - (t-> niceness)/2;
-  printf("recent_cpu float = %i \n", t->recent_cpu);
-  printf("recent_cpu int = %i \n", t->recent_cpu / FP_CONV); 
-  printf("calc_pri = %i\n", calc_pri);
   return calc_pri;
 }
 
@@ -489,20 +487,14 @@ update_priority_of(struct thread* t, void* aux UNUSED){
 //any calls to this function should operate priority_sema
 void 
 update_recent_cpu_of(struct thread* t, void* aux UNUSED){
-  int avg = (int) (load_avg * 100 / FP_CONV) ;  
+  int avg = load_avg ;  
   int nice = t -> niceness;
   nice *= FP_CONV;
   int latest = t-> recent_cpu;
   //fixed point arith for (2*load_avg )/(2*load_avg + 1)
   int calc_so_far = ((int64_t) (2*avg) * FP_CONV)/(2*avg + 1*FP_CONV);
-  printf("calc so far = %i\n", calc_so_far);
   //fp arith for (2*load_avg )/(2*load_avg + 1) * recent 
-
-
-  printf("LATEST = %i\n", latest);
   calc_so_far  = (((int64_t) calc_so_far) * latest) / FP_CONV; 
-
-  printf("BEFORE adding nice = %i\n", calc_so_far);
   t -> recent_cpu = calc_so_far + nice;
 }
 
@@ -516,7 +508,7 @@ update_load_avg(void){
   for (i = 63; i >= 0; i--) {
 	ready_threads += list_size(&ready_queue[i]);
   }
- // printf("ready threads excluding current = %i", ready_threads);
+  printf("\nready threads excluding current = %i\n", ready_threads);
 
   if (strcmp(thread_current()-> name,"idle") != 0) {
 	ready_threads += 1;

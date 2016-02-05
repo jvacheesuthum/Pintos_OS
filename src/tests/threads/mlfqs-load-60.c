@@ -120,8 +120,10 @@ test_mlfqs_load_60 (void)
 
   start_time = timer_ticks ();
   msg ("Starting %d niced load threads...", THREAD_CNT);
+  printf("thread current name = %s\n", thread_current() -> name);
   for (i = 0; i < THREAD_CNT; i++) 
     {
+	printf("create %i\n", i);
       char name[16];
       snprintf(name, sizeof name, "load %d", i);
       thread_create (name, PRI_DEFAULT, load_thread, NULL);
