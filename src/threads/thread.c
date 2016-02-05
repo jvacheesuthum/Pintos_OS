@@ -91,7 +91,7 @@ void
 thread_init (void) 
 {
   load_avg = 0;
-  thread_mlfqs = true;
+  //thread_mlfqs = true;
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
@@ -501,11 +501,16 @@ void
 update_load_avg(void){
   int ready_threads = 0;
   int i;
-  for (i = 63; i > 0; i--) {
-	ready_threads += list_size(&ready_queue[i]);
+  for (i = 63; i >= 0; i--) {
+    if (!list_empty(&ready_queue[i])) {
+	//ready_threads += list_size(&ready_queue[i]);
+   	struct thread* s = list_entry (list_pop_front (&(ready_queue[i])), struct thread, elem);
+	
+	printf("waiting thread name = %s\n", s->name);
+    }
   }
   printf("ready threads excluding current = %i", ready_threads);
-
+  printf("running thread name = %s\n", running_thread()->name);
   if (running_thread()-> status == THREAD_RUNNING) {
 	ready_threads += 1;
   }

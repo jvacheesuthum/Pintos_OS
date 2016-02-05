@@ -102,6 +102,8 @@ timer_sleep (int64_t ticks)
   st.alarm_ticks = ticks;
   list_push_back (&sleep_list, &(st.elem));
 
+  ASSERT (intr_get_level () == INTR_ON);
+
   sema_down(&(st.sema));
 }
 
@@ -179,6 +181,7 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
+  printf("intr begins\n");
   enum intr_level old_level;
   ticks++;
   thread_tick ();
@@ -210,6 +213,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
     }
   }
 
+  printf("intr ends\n");
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
