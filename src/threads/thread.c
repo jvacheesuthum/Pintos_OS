@@ -506,7 +506,7 @@ update_load_avg(void){
   }
   printf("ready threads excluding current = %i", ready_threads);
 
-  if (running_thread()-> status == THREAD_RUNNING) {
+  if (running_thread()-> status == THREAD_RUNNING) { // will idle thread also have status THREAD_RUNNING?
 	ready_threads += 1;
   }
   printf("ready threads = %i", ready_threads);
