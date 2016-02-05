@@ -82,33 +82,80 @@ push_ready_queue (int priority, struct thread *thread)
 void
 donate_priority (struct lock *lock, int priority)
 {
-  sema_down (&thread_current ()->priority_change);
-  struct lock_priority new_lockP;
-  new_lockP.lock = lock;
-  new_lockP.priority = priority;
+//  printf("Donate_priority to lock holder: %s\n", (lock->holder)->name);
+  sema_down (&(lock->holder)->priority_change);
   
-  struct list_elem *e = list_begin (thread_current ()->lock_list);
+  struct list_elem *e = list_begin (&(lock->holder)->lock_list);
   struct lock_priority *p = list_entry (e, struct lock_priority, elem);
-  while (e != list_end (thread_current ()->lock_list)) {
+  while (e != list_end (&(lock->holder)->lock_list)) {
+  //find the correct lock_priority struct and change the priority value
     if (lock == p->lock) {
     	if (priority > p->priority) {
      	  p->priority = priority;
+          remove_lock_priority (p->lock); //move the lock_priority to it's
+	  insert_lock_priority (p); //correct position
 	}
 	break;
     }
     e = list_next(e);
     p = list_entry (e, struct lock_priority, elem);
   }
-//  list_insert (e, &new_lock->elem);
-  ASSERT (priority > thread_current ()->base_priority);
-  *e = list_begin (thread_current ()->lock_list);
-  *p = list_entry (e, struct lock_priority, elem);
+  ASSERT (priority > (lock->holder)->base_priority);
+  e = list_begin (&(lock->holder)->lock_list);
+  p = list_entry (e, struct lock_priority, elem);
+
+//Have to change ready queue position? Are the lock holder always ready?
+  list_remove (&(lock->holder)->elem);
+
   (lock->holder)->priority = p->priority;
-  
-  sema_up (&thread_current ()->priority_change);
+    
+  list_push_back (&ready_queue[p->priority], &(lock->holder)->elem);
+  sema_up (&(lock->holder)->priority_change);
 }
 
+void
+restore_priority (void)
+{
+//  printf("Restore_priority to lock holder(current thread): %s\n", thread_current()->name);
+  sema_down (&(thread_current())->priority_change);
+  ASSERT (!list_empty (&thread_current ()->lock_list));
+  if (list_empty (&thread_current ()->lock_list)) {
+    thread_current()->priority = thread_current()->base_priority;
+  } else {
+    struct list_elem *e = list_begin (&thread_current ()->lock_list);
+    struct lock_priority *p = list_entry (e, struct lock_priority, elem);
+    thread_current()->priority = p->priority; 
+  }
+  sema_up (&(thread_current())->priority_change);
+}
 
+void
+insert_lock_priority (struct lock_priority *lockP)
+{
+//  printf("Insert into list of lock_priority\n");
+  struct list_elem *e = list_begin (&(thread_current ()->lock_list));
+  while (e != list_end (&(thread_current ()->lock_list))) {
+    struct lock_priority *lp = list_entry (e, struct lock_priority, elem);
+    if (lockP->priority > lp->priority) {
+      break;
+    }
+    e = list_next(e);
+  }
+  list_insert(e, &lockP->elem);
+}
+
+void
+remove_lock_priority(struct lock *lock)
+{
+  struct list_elem *e = list_begin (&thread_current ()->lock_list);
+  while (e != list_end (&thread_current ()->lock_list)) {
+    struct lock_priority *p = list_entry (e, struct lock_priority, elem);
+    if (p->lock == lock) {
+      list_remove(&p->elem);
+    }
+    e = list_next(e);
+  }
+}
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -136,8 +183,6 @@ thread_init (void)
 
   list_init (&all_list);
 
-  list_init (&lock_waiters_list);
- 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -229,9 +274,6 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
-  sema_init (&t->priority_change, 1);
-  list_init (t->lock_list);
-  t->base_priority = priority;
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -531,6 +573,7 @@ is_thread (struct thread *t)
 static void
 init_thread (struct thread *t, const char *name, int priority)
 {
+  printf("THREAD INIT: %s\n", name);
   enum intr_level old_level;
 
   ASSERT (t != NULL);
@@ -543,7 +586,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  t->base_priority = priority;
 
+  list_init (&t->lock_list);
+  sema_init (&t->priority_change, 1);
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);

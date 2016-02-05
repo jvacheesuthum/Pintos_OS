@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -110,7 +111,7 @@ struct lock_priority
   {
     struct list_elem elem;
     struct lock *lock;
-    struct int priority; 
+    int priority; 
   };
 
 /* If false (default), use round-robin scheduler.
@@ -150,4 +151,8 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void push_ready_queue (int, struct thread *);
+void donate_priority (struct lock *, int);
+void restore_priority (void);
+void insert_lock_priority (struct lock_priority *);
+void remove_lock_priority (struct lock *i); 
 #endif /* threads/thread.h */

@@ -174,7 +174,7 @@ sema_test_helper (void *sema_)
       sema_up (&sema[1]);
     }
 }
-
+
 /* Initializes LOCK.  A lock can be held by at most a single
    thread at any given time.  Our locks are not "recursive", that
    is, it is an error for the thread currently holding a lock to
@@ -210,60 +210,22 @@ lock_init (struct lock *lock)
 void
 lock_acquire (struct lock *lock)
 {
+  printf("Lock acquired by: %s\n", thread_current()->name);
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-  bool donated = false;
-  if (!sema_try_down (&lock->semaphore)) {
-    donate_priority (lock, 
+//  if (!sema_try_down (&lock->semaphore)) {
+  if (lock->holder != NULL) {
+    donate_priority (lock, thread_current ()->priority);
+  } else { 
+    struct lock_priority new_lockP;
+    new_lockP.lock = lock;
+    new_lockP.priority = thread_current ()->priority;
+    insert_lock_priority (&new_lockP);
   }
-  sema_down(lock->sema);
-  if (donated) {restore}
-  lock_holder = thread_current ();
-/*
-  int highestP;
-  if (lock->holder == NULL) {
-    sema_down (&lock->semaphore);
-    lock->holder = thread_current ();
-    //add lock_waiters to list in thread
-    struct lock_waiters lock_w;
-    lock_w.lock = lock;
-    list_init (&(lock_w.waiters));
-    add_locks (&lock_w);
-  } else {*/
-    /*find the lock_waiters that holds the corresponding lock
-    and insert the thread trying to aquire the lock */
-/*    struct list *waiters = get_locks (lock);
-    struct list_elem *e = list_begin (waiters);
-    while (e != list_end (waiters)) {
-      struct thread *t 
-	= list_entry (e, struct thread, elem);
-      if (thread_current ()->priority > (t->priority)) {
-        break;
-      }
-      e = list_next(e);
-    }
-    list_insert (e, &thread_current ()->elem);
-    //update latest highest priority to lock holder
-    e = list_begin (waiters);
-    highestP = (list_entry (e, struct thread, elem))->priority;
-    struct prev_priority *p = NULL;
-    p->priority = (lock->holder)->priority;
-    list_push_back (&(lock->holder)->prev_priority_list, &p->elem);
-    (lock->holder)->priority = highestP;
-
-    list_remove (&thread_current ()->elem);
-    //might have to put this bit in schedule()?
-    if ((lock->holder)->status == THREAD_READY) {
-      list_remove (&(lock->holder)->elem);
-//      list_push_back (&(get_ready_queue ()[(lock->holder)->priority]),
-//	 &(lock->holder)->elem);
-      push_ready_queue ((lock->holder)->priority, lock->holder);
-      thread_yield ();
-    }
-  }
-*/
+  sema_down(&lock->semaphore);
+  lock->holder = thread_current ();
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -294,44 +256,23 @@ lock_try_acquire (struct lock *lock)
 void
 lock_release (struct lock *lock) 
 {
+  printf("Lock Released by: %s\n", thread_current()->name);
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
-/*
-//move the current thread back to it's original priority
-  if (!list_empty (&thread_current ()->prev_priority_list)) {
-    struct list_elem *prev 
-  	= list_begin(&(thread_current ()->prev_priority_list));
-    thread_current ()->priority
-	= (list_entry (prev, struct thread, elem))->priority;
-//  list_push_back (&(ready_queue[&thread_current ()->priority]),
-//	&thread_current ()->elem);
-//    if (((&thread_current()->elem) != NULL) 
- //      && (&thread_current()->elem)->prev != NULL 
-  //     && (&thread_current()->elem)->next != NULL) {
-	list_remove (&thread_current ()->elem);
-        push_ready_queue (thread_current ()->priority, thread_current ());
-  //  }
-  }
+    
   lock->holder = NULL;
-  sema_up (&lock->semaphore);
-  struct list *waiters = get_locks (lock);
-  struct list_elem *e = list_begin (waiters);
-  while (e != list_end (waiters)) {
-    struct thread *thread = list_entry (e, struct thread, elem);
-    ASSERT (thread->status == THREAD_READY);
-    //restore the all waiters back to ready queue
-//    list_push_back (&(ready_queue[thread->priority]), 
- // 	  &thread->elem);
-    push_ready_queue (thread->priority, thread);
-    e = list_next(e);
+  bool donated = false;
+  int prior_before = thread_current()->priority;
+  restore_priority ();
+  if (prior_before > &thread_current()->priority) {
+    donated = true;
   }
-  remove_lock_list (lock); 
-  thread_yield ();*/
-    lock->holder = NULL;
-    sema_up (&lock->semaphore);
-    if (!list of locks empty) {
-      thread_yield ();
-    }
+  sema_up (&lock->semaphore);
+  printf("Lock after release, before yield: %s\n", thread_current()->name); 
+  if (donated) {
+    thread_yield ();
+  }
+}
 /* Returns true if the current thread holds LOCK, false
    otherwise.  (Note that testing whether some other thread holds
    a lock would be racy.) */
@@ -342,7 +283,7 @@ lock_held_by_current_thread (const struct lock *lock)
 
   return lock->holder == thread_current ();
 }
-
+
 /* One semaphore in a list. */
 struct semaphore_elem 
   {
