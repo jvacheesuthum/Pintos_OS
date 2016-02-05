@@ -181,7 +181,6 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
-  printf("intr begins\n");
   enum intr_level old_level;
   ticks++;
   thread_tick ();
@@ -193,6 +192,12 @@ timer_interrupt (struct intr_frame *args UNUSED)
     if(timer_ticks() % TIMER_FREQ == 0){
       printf("one more second load_avg=%i\n",load_avg);
       update_load_avg();
+      printf("current thread = %s", thread_current() -> name);
+      if (strcmp(thread_current() -> name, "idle") != 0) {
+	(thread_current() -> recent_cpu) += 1;
+	printf("\n INCREMENTING recent cpu \n");
+      }
+     // update_recent_cpu_of(thread_current(), NULL);
       thread_foreach(&update_recent_cpu_of, NULL);
       thread_foreach(&update_priority_of, NULL);
     }
@@ -213,7 +218,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
     }
   }
 
-  printf("intr ends\n");
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

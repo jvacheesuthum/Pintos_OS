@@ -91,7 +91,7 @@ void
 thread_init (void) 
 {
   load_avg = 0;
-  //thread_mlfqs = true;
+  thread_mlfqs = true;
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
@@ -458,7 +458,7 @@ thread_get_recent_cpu (void)
   sema_down(&priority_sema);
   int recent = thread_current()-> recent_cpu;
   sema_up(&priority_sema);
-  return (int) (100 * recent/FP_CONV);
+  return (int) ((100 * recent)/FP_CONV);
 }
 
 /* ------------------- Some extra functions for TASK1 ----------------------- */
@@ -476,8 +476,10 @@ calc_priority_of(struct thread* t){
 void
 update_priority_of(struct thread* t, void* aux UNUSED){
   t-> priority = calc_priority_of(t);
-  list_remove(&t->elem); 
-  list_push_back(&(ready_queue[t->priority]), &t->elem);
+  if(t->status == THREAD_READY){
+    list_remove(&t->elem); 
+    list_push_back(&(ready_queue[t->priority]), &t->elem);
+  }
 }
 
 //any calls to this function should operate priority_sema
@@ -489,8 +491,14 @@ update_recent_cpu_of(struct thread* t, void* aux UNUSED){
   int latest = t-> recent_cpu;
   //fixed point arith for (2*load_avg )/(2*load_avg + 1)
   int calc_so_far = ((int64_t) (2*avg) * FP_CONV)/(2*avg + 1*FP_CONV);
+  printf("calc so far = %i\n", calc_so_far);
   //fp arith for (2*load_avg )/(2*load_avg + 1) * recent 
-  calc_so_far  = (((int64_t) calc_so_far) * latest/FP_CONV); 
+
+
+  printf("LATEST = %i\n", latest);
+  calc_so_far  = (((int64_t) calc_so_far) * latest) / FP_CONV; 
+
+  printf("BEFORE adding nice = %i\n", calc_so_far);
   t -> recent_cpu = calc_so_far + nice;
 }
 
@@ -502,21 +510,16 @@ update_load_avg(void){
   int ready_threads = 0;
   int i;
   for (i = 63; i >= 0; i--) {
-    if (!list_empty(&ready_queue[i])) {
-	//ready_threads += list_size(&ready_queue[i]);
-   	struct thread* s = list_entry (list_pop_front (&(ready_queue[i])), struct thread, elem);
-	
-	printf("waiting thread name = %s\n", s->name);
-    }
+	ready_threads += list_size(&ready_queue[i]);
   }
-  printf("ready threads excluding current = %i", ready_threads);
-  printf("running thread name = %s\n", running_thread()->name);
-  if (running_thread()-> status == THREAD_RUNNING) {
+ // printf("ready threads excluding current = %i", ready_threads);
+
+  if (strcmp(thread_current()-> name,"idle") != 0) {
 	ready_threads += 1;
   }
-  printf("ready threads = %i", ready_threads);
+ // printf("ready threads = %i", ready_threads);
   load_avg = (59*load_avg)/60 + (FP_CONV/60)*(ready_threads);
-  printf("load avg= %i\n", load_avg);
+ // printf("load avg= %i\n", load_avg);
 }
 
 /* ----------------------------------------------------------------------------- */
