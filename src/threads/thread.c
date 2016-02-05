@@ -476,8 +476,10 @@ calc_priority_of(struct thread* t){
 void
 update_priority_of(struct thread* t, void* aux UNUSED){
   t-> priority = calc_priority_of(t);
-  list_remove(&t->elem); 
-  list_push_back(&(ready_queue[t->priority]), &t->elem);
+  if(t->status == THREAD_READY){
+    list_remove(&t->elem); 
+    list_push_back(&(ready_queue[t->priority]), &t->elem);
+  }
 }
 
 //any calls to this function should operate priority_sema
