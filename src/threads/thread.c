@@ -72,17 +72,10 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
-
-void
-push_ready_queue (int priority, struct thread *thread)
-{
-  list_push_back (&ready_queue[priority], &thread->elem);
-}
-
 void
 donate_priority (struct lock *lock, int priority)
 {
-//  printf("Donate_priority to lock holder: %s\n", (lock->holder)->name);
+  printf("Donate_priority to lock holder: %s\n", (lock->holder)->name);
   sema_down (&(lock->holder)->priority_change);
   
   struct list_elem *e = list_begin (&(lock->holder)->lock_list);
@@ -92,8 +85,9 @@ donate_priority (struct lock *lock, int priority)
     if (lock == p->lock) {
     	if (priority > p->priority) {
      	  p->priority = priority;
-          remove_lock_priority (p->lock); //move the lock_priority to it's
-	  insert_lock_priority (p); //correct position
+          remove_lock_priority ((p->lock)->holder, p->lock); 
+          //move the lock_priority to it's
+	  insert_lock_priority ((p->lock)->holder, p); //correct position
 	}
 	break;
     }
@@ -117,38 +111,58 @@ void
 restore_priority (void)
 {
 //  printf("Restore_priority to lock holder(current thread): %s\n", thread_current()->name);
-  sema_down (&(thread_current())->priority_change);
-  ASSERT (!list_empty (&thread_current ()->lock_list));
+  sema_down (&(thread_current())->priority_change); 
+  printf("Size of list in restore_priority: %i\n", list_size(&thread_current()->lock_list));
   if (list_empty (&thread_current ()->lock_list)) {
     thread_current()->priority = thread_current()->base_priority;
+    printf("IF\n");
   } else {
     struct list_elem *e = list_begin (&thread_current ()->lock_list);
     struct lock_priority *p = list_entry (e, struct lock_priority, elem);
+    printf("ELSE: %i\n", p->priority);
     thread_current()->priority = p->priority; 
   }
   sema_up (&(thread_current())->priority_change);
 }
 
+//insert lock_priority into the t's lock_list
 void
-insert_lock_priority (struct lock_priority *lockP)
+insert_lock_priority (struct thread *t, struct lock_priority *lockP)
 {
-//  printf("Insert into list of lock_priority\n");
-  struct list_elem *e = list_begin (&(thread_current ()->lock_list));
-  while (e != list_end (&(thread_current ()->lock_list))) {
+  printf("Before Insert into list of lock_priority: %i\n", lockP->priority);
+  printf("list size: %i\n", list_size (&t->lock_list));
+  struct list_elem *e = list_begin (&t->lock_list);
+  while (e != list_end (&t->lock_list)) {
     struct lock_priority *lp = list_entry (e, struct lock_priority, elem);
     if (lockP->priority > lp->priority) {
+      printf("Inside If\n");
       break;
     }
+    printf("After If\n");
     e = list_next(e);
   }
   list_insert(e, &lockP->elem);
+  printf("list size After: %i\n", list_size (&t->lock_list));
+   
+  int i = 0;
+  struct list_elem *testBegin = list_begin (&((lockP->lock)->holder)->lock_list);
+  while (testBegin != list_end (&((lockP->lock)->holder)->lock_list)) {
+    struct lock_priority *testLP = list_entry (testBegin, struct lock_priority, elem);
+    printf ("List <%i>: %i\n", i, testLP->priority);
+    i++;
+    testBegin = list_next(testBegin);
+  }
+
+  printf("After Insert into list of lock_priority\n");
 }
 
+//remove lock_priority from t's lock_list that corresponds to lock
 void
-remove_lock_priority(struct lock *lock)
+remove_lock_priority(struct thread *t, struct lock *lock)
 {
-  struct list_elem *e = list_begin (&thread_current ()->lock_list);
-  while (e != list_end (&thread_current ()->lock_list)) {
+  printf("Remove_lock_priority\n");
+  struct list_elem *e = list_begin (&t->lock_list);
+  while (e != list_end (&t->lock_list)) {
     struct lock_priority *p = list_entry (e, struct lock_priority, elem);
     if (p->lock == lock) {
       list_remove(&p->elem);

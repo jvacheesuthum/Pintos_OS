@@ -150,9 +150,8 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-void push_ready_queue (int, struct thread *);
 void donate_priority (struct lock *, int);
 void restore_priority (void);
-void insert_lock_priority (struct lock_priority *);
-void remove_lock_priority (struct lock *i); 
+void insert_lock_priority (struct thread *, struct lock_priority *);
+void remove_lock_priority (struct thread *, struct lock *i); 
 #endif /* threads/thread.h */
