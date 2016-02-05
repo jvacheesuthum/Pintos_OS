@@ -187,18 +187,17 @@ timer_interrupt (struct intr_frame *args UNUSED)
 
   /*TASK1 mlfqs: updating recent_cpu values*/
   if(thread_mlfqs){
-    thread_current() -> recent_cpu++;
+    thread_current() -> recent_cpu += FP_CONV;
     old_level = intr_disable();
     if(timer_ticks() % TIMER_FREQ == 0){
-      printf("one more second load_avg=%i\n",load_avg);
+      printf("one more second: current thread = %s,", thread_current() -> name);
+      printf("priority = %i,", thread_current()->priority);
+      printf("recent_cpu = %i \n", thread_current()-> recent_cpu);
+      printf("        niceness = %i, ", thread_current()->niceness);
       update_load_avg();
-      printf("current thread = %s", thread_current() -> name);
-      if (strcmp(thread_current() -> name, "idle") != 0) {
-	(thread_current() -> recent_cpu) += 1;
-	printf("\n INCREMENTING recent cpu \n");
-      }
-     // update_recent_cpu_of(thread_current(), NULL);
+      printf("recent_cpu before = %i \n", thread_current()-> recent_cpu);
       thread_foreach(&update_recent_cpu_of, NULL);
+      printf("recent_cpu after1 = %i \n", thread_current()-> recent_cpu);
       thread_foreach(&update_priority_of, NULL);
     }
     intr_set_level(old_level);

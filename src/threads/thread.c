@@ -465,7 +465,11 @@ thread_get_recent_cpu (void)
 /* Must be called by a function that is synchronized */
 int
 calc_priority_of(struct thread* t){
-  return PRI_MAX - ((t-> recent_cpu)/FP_CONV)/4 - (t-> niceness)/2;
+  int calc_pri = PRI_MAX - ((t-> recent_cpu)/FP_CONV)/4 - (t-> niceness)/2;
+  printf("recent_cpu float = %i \n", t->recent_cpu);
+  printf("recent_cpu int = %i \n", t->recent_cpu / FP_CONV); 
+  printf("calc_pri = %i\n", calc_pri);
+  return calc_pri;
 }
 
 /* Recalculate priority of thread t, move queue, 
