@@ -229,7 +229,7 @@ thread_create (const char *name, int priority,
   /* if highest priority, run now */
   struct thread *cur = running_thread ();
   if (t->priority > cur->priority) {
-    printf("YIELDDDDDDD\n");
+    printf("THREAD: %s YIELDDDDDDD\n", thread_current()->name);
     thread_yield ();
   }
 
@@ -271,6 +271,7 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&(ready_queue[t->priority]), &t->elem);
   t->status = THREAD_READY;
+  printf("thread_unblock %s \n", t-> name);
   intr_set_level (old_level);
 }
 
@@ -339,8 +340,11 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
+  printf("in thread yield, before adding into queue 1\n");
   if (cur != idle_thread) 
+    printf("in thread yield, before adding into queue 2 size %i\n", list_size(&(ready_queue[cur->priority])));
     list_push_back (&(ready_queue[cur->priority]), &cur->elem);
+  printf("in thread yield, after adding into queue 3 size %i\n",list_size(&(ready_queue[cur->priority])));
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
