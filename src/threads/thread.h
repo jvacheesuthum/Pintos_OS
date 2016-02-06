@@ -113,7 +113,15 @@ struct lock_priority
     struct lock *lock;
     int priority; 
   };
-
+/*
+struct lock_thread
+  {
+    struct list_elem elem;
+    struct semaphore priority_change;
+    struct thread *t;
+    struct list lock_list;
+  };
+*/
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */

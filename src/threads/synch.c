@@ -222,18 +222,14 @@ lock_acquire (struct lock *lock)
   if (lock->holder != NULL) {
     donate_priority (lock, thread_current ()->priority);
   } else { 
-    lock->holder = thread_current ();
+//    lock->holder = thread_current ();
     new_lockP.lock = lock;
     new_lockP.priority = thread_current ()->priority;
     insert_lock_priority (thread_current(), new_lockP);
   }
-  sema_down(&new_lockP.lock->semaphore);
-//  sema_down (&lock->semaphore); //<--original
+//  sema_down(&new_lockP.lock->semaphore);
+  sema_down (&lock->semaphore); //<--original
   lock->holder = thread_current ();
-//  printf("<3>: %i\n", list_size(&(thread_current()->lock_list)));
-//  struct list_elem *e = list_begin (&(thread_current()->lock_list));
-//  struct lock_priority *p = list_entry (e, struct lock_priority, elem);
-//  printf("<4>: %i\n", p->priority);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -264,30 +260,23 @@ lock_try_acquire (struct lock *lock)
 void
 lock_release (struct lock *lock) 
 {
-//  printf("Lock Released by: %s\n", thread_current()->name);
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
-//  printf("<1>: %i\n", list_size(&thread_current()->lock_list));
-//  struct list_elem *e = list_begin (&(thread_current ()->lock_list));
-//  struct lock_priority *p = list_entry (e, struct lock_priority, elem);
-//  if (p->lock == lock) printf("TEMP's P\n");
-//  printf("<2>: %i\n", p->priority);
  
   lock->holder = NULL;
   bool donated = false;
   int prior_before = thread_current()->priority;
+//  printf("Size before remove: %i\n", list_size(&thread_current()->lock_list));
+  remove_lock_priority (thread_current(), lock);
+//  printf("Size after remove: %i\n", list_size(&thread_current()->lock_list));
   restore_priority ();
-//  sema_up (&lock->semaphore);
   if (prior_before > thread_current()->priority) {
     donated = true;
   }
   sema_up (&lock->semaphore);
-//  printf("Lock after release, before yield: %s\n", thread_current()->name); 
   if (donated) {
-//    printf("YIELDED\n");
     thread_yield ();
   }
-//  printf("NOT YIELDED\n");
 }
 /* Returns true if the current thread holds LOCK, false
    otherwise.  (Note that testing whether some other thread holds

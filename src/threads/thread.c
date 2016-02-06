@@ -119,7 +119,7 @@ restore_priority (void)
   } else {
     struct list_elem *e = list_begin (&thread_current ()->lock_list);
     struct lock_priority *p = list_entry (e, struct lock_priority, elem);
-    thread_current()->priority = p->priority; 
+    thread_current()->priority = p->priority;
   }
   sema_up (&(thread_current())->priority_change);
 }
@@ -139,6 +139,7 @@ insert_lock_priority (struct thread *t, struct lock_priority lockP)
     e = list_next(e);
   }
   list_insert(e, &(lockP.elem));
+  
 }
 
 //remove lock_priority from t's lock_list that corresponds to lock
@@ -150,7 +151,8 @@ remove_lock_priority(struct thread *t, struct lock *lock)
   while (e != list_end (&t->lock_list)) {
     struct lock_priority *p = list_entry (e, struct lock_priority, elem);
     if (p->lock == lock) {
-      list_remove(&p->elem);
+      list_remove(e);
+      break;
     }
     e = list_next(e);
   }
@@ -183,7 +185,6 @@ thread_init (void)
   }
 
   list_init (&all_list);
-
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -590,9 +591,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   t->base_priority = priority;
 
-  list_init (&t->lock_list);
+  list_init(&t->lock_list);
   sema_init (&t->priority_change, 1);
-//  printf("List and Semaphore initialised\n");
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
