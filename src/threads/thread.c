@@ -199,6 +199,7 @@ thread_create (const char *name, int priority,
   if(thread_mlfqs){
     t-> niceness = thread_get_nice(); 
     t-> recent_cpu = thread_get_recent_cpu();
+    //printf("thread create dont calc priority, for debugging");
     t-> priority = calc_priority_of(t); 
   }
   /* Prepare thread for first run by initializing its stack.
@@ -340,11 +341,10 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  printf("in thread yield, before adding into queue 1\n");
   if (cur != idle_thread) 
-    printf("in thread yield, before adding into queue 2 size %i\n", list_size(&(ready_queue[cur->priority])));
+   // printf("in thread yield, before adding into queue size %i\n", list_size(&(ready_queue[cur->priority])));
     list_push_back (&(ready_queue[cur->priority]), &cur->elem);
-  printf("in thread yield, after adding into queue 3 size %i\n",list_size(&(ready_queue[cur->priority])));
+  //printf("in thread yield, after adding into queue size %i\n",list_size(&(ready_queue[cur->priority])));
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -429,8 +429,10 @@ thread_set_nice (int new_nice)
   cur-> niceness = new_nice;
   update_recent_cpu_of(cur, NULL);
   update_priority_of(cur, NULL);
+  sema_up(&priority_sema);
   if(!highest_priority()){
-    thread_yield_up_sema(&priority_sema);
+   // thread_yield_up_sema(&priority_sema);
+    thread_yield();
   }
 }
 
@@ -471,6 +473,9 @@ thread_get_recent_cpu (void)
 int
 calc_priority_of(struct thread* t){
   int calc_pri = PRI_MAX - ((t-> recent_cpu)/FP_CONV)/4 - (t-> niceness)/2;
+  if(t == idle_thread){
+    calc_pri = 0;
+  }
   return calc_pri;
 }
 
@@ -512,9 +517,10 @@ update_load_avg(void){
   for (i = 63; i >= 0; i--) {
 	ready_threads += list_size(&ready_queue[i]);
   }
-  printf("\nready threads excluding current = %i\n", ready_threads);
+  printf("ready threads excluding current = %i\n", ready_threads);
 
-  if (strcmp(thread_current()-> name,"idle") != 0) {
+  if(thread_current() != idle_thread){
+  //if (strcmp(thread_current()-> name,"idle") != 0) {
 	ready_threads += 1;
   }
  // printf("ready threads = %i", ready_threads);
@@ -708,6 +714,7 @@ thread_schedule_tail (struct thread *prev)
 static void
 schedule (void) 
 {
+  //printf("inside schedule function!");
   struct thread *cur = running_thread ();
   struct thread *next = next_thread_to_run ();
   struct thread *prev = NULL;
@@ -716,6 +723,8 @@ schedule (void)
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
 
+  //printf("schedule: switch cur= %s, ", cur->name);
+  //printf("next= %s \n", next->name); 
   if (cur != next) {
     prev = switch_threads (cur, next);
   }

@@ -18,6 +18,8 @@
 #error TIMER_FREQ <= 1000 recommended
 #endif
 
+extern struct semaphore priority_sema;
+
 static struct list sleep_list;
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
@@ -92,7 +94,7 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-
+  printf("timer sleep called, current thread = %s\n", thread_current()->name);
   ASSERT (intr_get_level () == INTR_ON);
 
   /*init sleeping thread*/
@@ -194,6 +196,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
       printf("priority = %i,", thread_current()->priority);
       printf("recent_cpu = %i \n", thread_current()-> recent_cpu);
       printf("        niceness = %i, ", thread_current()->niceness);
+      printf("sleep_list size= %i,", list_size(&sleep_list));
+      printf("priority_sema waiters size = %i,", list_size(&((&priority_sema)->waiters)));
       update_load_avg();
 //      printf("recent_cpu before = %i \n", thread_current()-> recent_cpu);
       thread_foreach(&update_recent_cpu_of, NULL);

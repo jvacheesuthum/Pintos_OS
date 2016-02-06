@@ -103,6 +103,7 @@ intr_enable (void)
 enum intr_level
 intr_disable (void) 
 {
+ // printf("INTERRUPT DISABLE CALLED, interrupt.c");
   enum intr_level old_level = intr_get_level ();
 
   /* Disable interrupts by clearing the interrupt flag.
