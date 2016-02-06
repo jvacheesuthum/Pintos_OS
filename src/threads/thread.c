@@ -199,6 +199,7 @@ thread_create (const char *name, int priority,
   if(thread_mlfqs){
     t-> niceness = thread_get_nice(); 
     t-> recent_cpu = thread_get_recent_cpu();
+    //printf("thread create dont calc priority, for debugging");
     t-> priority = calc_priority_of(t); 
   }
   /* Prepare thread for first run by initializing its stack.
@@ -229,6 +230,7 @@ thread_create (const char *name, int priority,
   /* if highest priority, run now */
   struct thread *cur = running_thread ();
   if (t->priority > cur->priority) {
+    printf("THREAD: %s YIELDDDDDDD\n", thread_current()->name);
     thread_yield ();
   }
 
@@ -270,6 +272,7 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&(ready_queue[t->priority]), &t->elem);
   t->status = THREAD_READY;
+  printf("thread_unblock %s \n", t-> name);
   intr_set_level (old_level);
 }
 
@@ -408,9 +411,7 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
-  sema_down(&priority_sema);
   int pri = thread_current ()->priority;
-  sema_up(&priority_sema);
   return pri;
 }
 
@@ -420,12 +421,11 @@ void
 thread_set_nice (int new_nice) 
 {
   struct thread* cur = thread_current();
-  sema_down(&priority_sema);
   cur-> niceness = new_nice;
   update_recent_cpu_of(cur, NULL);
   update_priority_of(cur, NULL);
   if(!highest_priority()){
-    thread_yield_up_sema(&priority_sema);
+    thread_yield();
   }
 }
 
@@ -433,9 +433,7 @@ thread_set_nice (int new_nice)
 int
 thread_get_nice (void) 
 {
-  sema_down(&priority_sema);
   int nice = thread_current() -> niceness;
-  sema_up(&priority_sema);
   return nice;
 }
 
@@ -444,10 +442,8 @@ int
 thread_get_load_avg (void) 
 {
   //load avg is stored as fixed point format so div by conv to get value
-  sema_down(&priority_sema);
   int avg = load_avg;
-  sema_up(&priority_sema);
-  return (int) (100 * avg /FP_CONV);
+  return (100*avg + FP_CONV / 2) / FP_CONV;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -455,23 +451,25 @@ int
 thread_get_recent_cpu (void) 
 {
   //since recent is stored in foxed point format - has to div by conv to get real value
-  sema_down(&priority_sema);
   int recent = thread_current()-> recent_cpu;
-  sema_up(&priority_sema);
-  return (int) (100 * recent/FP_CONV);
+  return (100*recent + FP_CONV / 2) / FP_CONV;
 }
 
 /* ------------------- Some extra functions for TASK1 ----------------------- */
 /* Must be called by a function that is synchronized */
 int
 calc_priority_of(struct thread* t){
-  return PRI_MAX - ((t-> recent_cpu)/FP_CONV)/4 - (t-> niceness)/2;
+  int calc_pri = PRI_MAX - ((t-> recent_cpu)/FP_CONV)/4 - (t-> niceness)/2;
+  if(t == idle_thread){
+    calc_pri = 0;
+  }
+  return calc_pri;
 }
 
 /* Recalculate priority of thread t, move queue, 
  * but DOES NOT YIELD OR BLOCK CURRENT THREAD EVER, because it is also used by thread_foreach 
  * which is called when interrupt is turned off.   
- * Must be called by a function that is synchronized. 
+ * MUST be called by a function that is synchronized with priority_sema UNLESS called to non ready threads. 
  */
 void
 update_priority_of(struct thread* t, void* aux UNUSED){
@@ -482,17 +480,16 @@ update_priority_of(struct thread* t, void* aux UNUSED){
   }
 }
 
-//any calls to this function should operate priority_sema
 void 
 update_recent_cpu_of(struct thread* t, void* aux UNUSED){
-  int avg = (int) (load_avg * 100 / FP_CONV) ;  
+  int avg = load_avg ;  
   int nice = t -> niceness;
   nice *= FP_CONV;
   int latest = t-> recent_cpu;
   //fixed point arith for (2*load_avg )/(2*load_avg + 1)
   int calc_so_far = ((int64_t) (2*avg) * FP_CONV)/(2*avg + 1*FP_CONV);
   //fp arith for (2*load_avg )/(2*load_avg + 1) * recent 
-  calc_so_far  = (((int64_t) calc_so_far) * latest/FP_CONV); 
+  calc_so_far  = (((int64_t) calc_so_far) * latest) / FP_CONV; 
   t -> recent_cpu = calc_so_far + nice;
 }
 
@@ -506,15 +503,12 @@ update_load_avg(void){
   for (i = 63; i >= 0; i--) {
 	ready_threads += list_size(&ready_queue[i]);
   }
-  printf("ready threads excluding current = %i", ready_threads);
+  printf("ready threads excluding current = %i\n", ready_threads);
 
-
-  if (strcmp(thread_current()-> name,"idle") != 0) {
+  if(thread_current() != idle_thread){
 	ready_threads += 1;
   }
-  printf("ready threads = %i", ready_threads);
   load_avg = (59*load_avg)/60 + (FP_CONV/60)*(ready_threads);
-  printf("load avg= %i\n", load_avg);
 }
 
 /* ----------------------------------------------------------------------------- */
@@ -703,6 +697,7 @@ thread_schedule_tail (struct thread *prev)
 static void
 schedule (void) 
 {
+  //printf("inside schedule function!");
   struct thread *cur = running_thread ();
   struct thread *next = next_thread_to_run ();
   struct thread *prev = NULL;
@@ -711,6 +706,8 @@ schedule (void)
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
 
+  //printf("schedule: switch cur= %s, ", cur->name);
+  //printf("next= %s \n", next->name); 
   if (cur != next) {
     prev = switch_threads (cur, next);
   }

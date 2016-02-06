@@ -120,12 +120,24 @@ test_mlfqs_load_60 (void)
 
   start_time = timer_ticks ();
   msg ("Starting %d niced load threads...", THREAD_CNT);
+  printf("thread current name = %s\n", thread_current() -> name);
+  //intr_disable();
+  printf("!!interrupt disabled in test: level =");
+  if(intr_get_level() == INTR_OFF)
+    printf("INTR_OFF");
+  printf("\n");
   for (i = 0; i < THREAD_CNT; i++) 
     {
+	printf("create %i\n", i);
       char name[16];
       snprintf(name, sizeof name, "load %d", i);
       thread_create (name, PRI_DEFAULT, load_thread, NULL);
     }
+  //intr_enable();
+  printf("interrupt enabled in test level: ");
+  if(intr_get_level() == INTR_ON)
+    printf("INTR_ON");
+  printf("\n");
   msg ("Starting threads took %d seconds.",
        timer_elapsed (start_time) / TIMER_FREQ);
   
@@ -146,8 +158,17 @@ load_thread (void *aux UNUSED)
   int64_t sleep_time = 10 * TIMER_FREQ;
   int64_t spin_time = sleep_time + 60 * TIMER_FREQ;
   int64_t exit_time = spin_time + 60 * TIMER_FREQ;
-
+  printf("in load_thread name = %s \n", thread_current()->name);
+  if(intr_get_level() == INTR_OFF){
+    printf("level is: INTR_OFF");
+  } else{
+    printf("level is: INTR_ON");
+  }
+  printf("\n");
+  printf("in load_thread before set_nice =%s \n", thread_current()->name);
   thread_set_nice (20);
+  printf("after set nice\n");
+  //printf("in load_thread after set_nice  = %s \n", thread_current()->name);
   timer_sleep (sleep_time - timer_elapsed (start_time));
   while (timer_elapsed (start_time) < spin_time)
     continue;
