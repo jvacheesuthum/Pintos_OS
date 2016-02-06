@@ -91,7 +91,7 @@ void
 thread_init (void) 
 {
   load_avg = 0;
-  thread_mlfqs = true;
+  thread_mlfqs = false;
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
