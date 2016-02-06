@@ -133,7 +133,7 @@ void thread_exit (void) NO_RETURN;
 
 /*priority donation */
 void donate_priority (struct lock *lock, int new_priority);
-bool restore_priority (struct lock *lock);
+int restore_priority (struct lock *lock);
 
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);

@@ -217,7 +217,12 @@ lock_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
 
   if (!sema_try_down (&lock->semaphore)) {
+    printf(thread_current ()->name);
+    printf(" wants to acquire lock ");
+    printf(lock);
+    printf(" will donate priority %i\n", thread_current()->priority);
     donate_priority (lock, thread_current()->priority);
+    printf("donated.");
     sema_down (&lock->semaphore);
   }
 
@@ -255,10 +260,15 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
-  bool b = restore_priority (lock);
+  printf(thread_current()->name);
+  printf(" is releasing lock ");
+  printf(lock);
+  printf("\n");
+  int restored = restore_priority (lock);
+  if (restored == 1) printf("restored");
   lock->holder = NULL;
   sema_up (&lock->semaphore);
-  if (b) thread_yield();
+  if (restored == 1) thread_yield();
 }
 
 /* Returns true if the current thread holds LOCK, false
