@@ -474,6 +474,10 @@ calc_priority_of(struct thread* t){
 void
 update_priority_of(struct thread* t, void* aux UNUSED){
   t-> priority = calc_priority_of(t);
+  if(t->priority < 0 || t->priority >63){
+    printf("update_priority_of: priority out of range! pri = %i \n", t->priority);
+    ASSERT(t->priority >= 0 && t->priority <= 63);
+  }
   if(t->status == THREAD_READY){
     list_remove(&t->elem); 
     list_push_back(&(ready_queue[t->priority]), &t->elem);

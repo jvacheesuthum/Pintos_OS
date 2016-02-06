@@ -199,9 +199,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
       printf("sleep_list size= %i,", list_size(&sleep_list));
       printf("priority_sema waiters size = %i,", list_size(&((&priority_sema)->waiters)));
       update_load_avg();
-//      printf("recent_cpu before = %i \n", thread_current()-> recent_cpu);
       thread_foreach(&update_recent_cpu_of, NULL);
-  //    printf("recent_cpu after1 = %i \n", thread_current()-> recent_cpu);
       thread_foreach(&update_priority_of, NULL);
     }
     intr_set_level(old_level);
