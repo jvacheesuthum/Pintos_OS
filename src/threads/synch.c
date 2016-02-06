@@ -31,7 +31,6 @@
 #include <string.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
    manipulating it:
@@ -41,6 +40,7 @@
 
    - up or "V": increment the value (and wake up one waiting
      thread, if any). */
+
 void
 sema_init (struct semaphore *sema, unsigned value) 
 {
@@ -212,31 +212,28 @@ lock_init (struct lock *lock)
 void
 lock_acquire (struct lock *lock)
 {
-  printf("Lock acquired by: %s\n", thread_current()->name);
+//  printf("Lock acquired by: %s\n", thread_current()->name);
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
 //  if (!sema_try_down (&lock->semaphore)) {
+  struct lock_priority new_lockP;
   if (lock->holder != NULL) {
-    printf("IF in lock_acquire: %i\n", thread_current()->priority);
     donate_priority (lock, thread_current ()->priority);
   } else { 
     lock->holder = thread_current ();
-    struct lock_priority new_lockP;
     new_lockP.lock = lock;
     new_lockP.priority = thread_current ()->priority;
-    printf("ELSE in lock_acquire: %i\n", new_lockP.priority);
-    insert_lock_priority (thread_current(), &new_lockP);
-    printf("ELSE in lock_acquire: %i\n", new_lockP.priority);
-
+    insert_lock_priority (thread_current(), new_lockP);
   }
-  sema_down(&lock->semaphore);
+  sema_down(&new_lockP.lock->semaphore);
+//  sema_down (&lock->semaphore); //<--original
   lock->holder = thread_current ();
-  printf("<3>: %i\n", list_size(&(thread_current()->lock_list)));
-  struct list_elem *e = list_begin (&(thread_current()->lock_list));
-  struct lock_priority *p = list_entry (e, struct lock_priority, elem);
-  printf("<4>: %i\n", p->priority);
+//  printf("<3>: %i\n", list_size(&(thread_current()->lock_list)));
+//  struct list_elem *e = list_begin (&(thread_current()->lock_list));
+//  struct lock_priority *p = list_entry (e, struct lock_priority, elem);
+//  printf("<4>: %i\n", p->priority);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -267,15 +264,14 @@ lock_try_acquire (struct lock *lock)
 void
 lock_release (struct lock *lock) 
 {
-  printf("Lock Released by: %s\n", thread_current()->name);
+//  printf("Lock Released by: %s\n", thread_current()->name);
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
-   
-  printf("<1>: %i\n", list_size(&thread_current()->lock_list));
-  struct list_elem *e = list_begin (&(thread_current ()->lock_list));
-  struct lock_priority *p = list_entry (e, struct lock_priority, elem);
-  if (p->lock == lock) printf("HERE\n");
-  printf("<2>: %i\n", p->priority);
+//  printf("<1>: %i\n", list_size(&thread_current()->lock_list));
+//  struct list_elem *e = list_begin (&(thread_current ()->lock_list));
+//  struct lock_priority *p = list_entry (e, struct lock_priority, elem);
+//  if (p->lock == lock) printf("TEMP's P\n");
+//  printf("<2>: %i\n", p->priority);
  
   lock->holder = NULL;
   bool donated = false;
@@ -286,10 +282,12 @@ lock_release (struct lock *lock)
     donated = true;
   }
   sema_up (&lock->semaphore);
-  printf("Lock after release, before yield: %s\n", thread_current()->name); 
+//  printf("Lock after release, before yield: %s\n", thread_current()->name); 
   if (donated) {
+//    printf("YIELDED\n");
     thread_yield ();
   }
+//  printf("NOT YIELDED\n");
 }
 /* Returns true if the current thread holds LOCK, false
    otherwise.  (Note that testing whether some other thread holds

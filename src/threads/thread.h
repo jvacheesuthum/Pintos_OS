@@ -152,6 +152,7 @@ int thread_get_load_avg (void);
 
 void donate_priority (struct lock *, int);
 void restore_priority (void);
-void insert_lock_priority (struct thread *, struct lock_priority *);
+void insert_lock_priority (struct thread *, struct lock_priority);
 void remove_lock_priority (struct thread *, struct lock *i); 
+
 #endif /* threads/thread.h */

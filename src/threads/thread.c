@@ -72,10 +72,11 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+
 void
 donate_priority (struct lock *lock, int priority)
 {
-  printf("Donate_priority to lock holder: %s\n", (lock->holder)->name);
+//  printf("Donate_priority to lock holder: %s\n", (lock->holder)->name);
   sema_down (&(lock->holder)->priority_change);
   
   struct list_elem *e = list_begin (&(lock->holder)->lock_list);
@@ -87,7 +88,7 @@ donate_priority (struct lock *lock, int priority)
      	  p->priority = priority;
           remove_lock_priority ((p->lock)->holder, p->lock); 
           //move the lock_priority to it's
-	  insert_lock_priority ((p->lock)->holder, p); //correct position
+	  insert_lock_priority ((p->lock)->holder, *p); //correct position
 	}
 	break;
     }
@@ -107,52 +108,44 @@ donate_priority (struct lock *lock, int priority)
   sema_up (&(lock->holder)->priority_change);
 }
 
+
+
 void
 restore_priority (void)
 {
-//  printf("Restore_priority to lock holder(current thread): %s\n", thread_current()->name);
   sema_down (&(thread_current())->priority_change); 
-  printf("Size of list in restore_priority: %i\n", list_size(&thread_current()->lock_list));
   if (list_empty (&thread_current ()->lock_list)) {
     thread_current()->priority = thread_current()->base_priority;
-    printf("IF\n");
   } else {
     struct list_elem *e = list_begin (&thread_current ()->lock_list);
     struct lock_priority *p = list_entry (e, struct lock_priority, elem);
-    printf("ELSE: %i\n", p->priority);
     thread_current()->priority = p->priority; 
   }
   sema_up (&(thread_current())->priority_change);
 }
 
+
 //insert lock_priority into the t's lock_list
+
 void
-insert_lock_priority (struct thread *t, struct lock_priority *lockP)
+insert_lock_priority (struct thread *t, struct lock_priority lockP)
 {
-  printf("Before Insert into list of lock_priority: %i\n", lockP->priority);
-  printf("list size: %i\n", list_size (&t->lock_list));
   struct list_elem *e = list_begin (&t->lock_list);
   while (e != list_end (&t->lock_list)) {
     struct lock_priority *lp = list_entry (e, struct lock_priority, elem);
-    if (lockP->priority > lp->priority) {
-      printf("Inside If\n");
+    if (lockP.priority > lp->priority) {
       break;
     }
-    printf("After If\n");
     e = list_next(e);
   }
-  list_insert(e, &lockP->elem);
-  printf("list size After: %i\n", list_size (&t->lock_list));
-   
-
-  printf("After Insert into list of lock_priority\n");
+  list_insert(e, &(lockP.elem));
 }
 
 //remove lock_priority from t's lock_list that corresponds to lock
+
 void
 remove_lock_priority(struct thread *t, struct lock *lock)
 {
-  printf("Remove_lock_priority\n");
   struct list_elem *e = list_begin (&t->lock_list);
   while (e != list_end (&t->lock_list)) {
     struct lock_priority *p = list_entry (e, struct lock_priority, elem);
@@ -162,6 +155,8 @@ remove_lock_priority(struct thread *t, struct lock *lock)
     e = list_next(e);
   }
 }
+
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -188,6 +183,7 @@ thread_init (void)
   }
 
   list_init (&all_list);
+
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -579,7 +575,7 @@ is_thread (struct thread *t)
 static void
 init_thread (struct thread *t, const char *name, int priority)
 {
-  printf("THREAD INIT: %s\n", name);
+//  printf("THREAD INIT: %s\n", name);
   enum intr_level old_level;
 
   ASSERT (t != NULL);
@@ -596,6 +592,7 @@ init_thread (struct thread *t, const char *name, int priority)
 
   list_init (&t->lock_list);
   sema_init (&t->priority_change, 1);
+//  printf("List and Semaphore initialised\n");
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -715,7 +712,7 @@ allocate_tid (void)
 
   return tid;
 }
-
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
