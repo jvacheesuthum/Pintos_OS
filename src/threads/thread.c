@@ -394,7 +394,7 @@ highest_priority (void)
 struct donation
   {
     struct list_elem elem;
-    struct lock* lock;
+    int64_t lockid;
     int priority;
   };
 
@@ -406,14 +406,14 @@ update_pList(struct lock *lock, int new_priority)
   struct list_elem *e = list_begin(&t->pList);
   struct donation *found = NULL;
   printf("update pList looking for lock ");
-  printf(lock);
+  printf(lock->lockid);
   printf("\n");
   while (e != list_end (&t->pList)) {
     struct donation *d = list_entry (e, struct donation, elem);
     printf("got lock");
-    printf(&(d->lock));
+    printf(d->lockid);
     printf("\n");
-    if (&(d->lock) == lock) {
+    if (d->lockid == lock->lockid) {
       ASSERT (found == NULL);
       printf("update pList found.\n");
       found = d;
@@ -432,7 +432,7 @@ update_pList(struct lock *lock, int new_priority)
     //insert in order
     printf("updating\n");
     struct donation new_donation;
-    new_donation.lock = lock;
+    new_donation.lockid = lock->lockid;
     new_donation.priority = new_priority;
 
     e = list_begin (&t->pList);
@@ -487,14 +487,14 @@ restore_priority (struct lock *lock)
     sema_down (&t->priority_change);
     struct list_elem *e = list_begin (&t->pList);
     struct donation *d = list_entry (e, struct donation, elem);
-    printf("restore looking for %i\n", lock);
+    printf("restore looking for %i\n", lock->lockid);
     printf("searching list of size %i\n", list_size (&t->pList));
-    while ((e != list_end(&t->pList)) && (d->lock != lock)) {
+    while ((e != list_end(&t->pList)) && (d->lockid != lock->lockid)) {
       e = list_next(e);
       d = list_entry (e, struct donation, elem);
-      printf("restore found lock %i\n", (d->lock));
+      printf("restore found lock %i\n", (d->lockid));
     }
-    ASSERT (d->lock == lock);
+    ASSERT (d->lockid == lock->lockid);
     list_remove (e);
     //if thread is not running with a higher donation than this
     ASSERT (t->priority >= d->priority);
