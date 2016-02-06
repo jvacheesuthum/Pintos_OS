@@ -342,9 +342,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-   // printf("in thread yield, before adding into queue size %i\n", list_size(&(ready_queue[cur->priority])));
     list_push_back (&(ready_queue[cur->priority]), &cur->elem);
-  //printf("in thread yield, after adding into queue size %i\n",list_size(&(ready_queue[cur->priority])));
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -413,9 +411,7 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
-  sema_down(&priority_sema);
   int pri = thread_current ()->priority;
-  sema_up(&priority_sema);
   return pri;
 }
 
@@ -425,13 +421,10 @@ void
 thread_set_nice (int new_nice) 
 {
   struct thread* cur = thread_current();
-  sema_down(&priority_sema);
   cur-> niceness = new_nice;
   update_recent_cpu_of(cur, NULL);
   update_priority_of(cur, NULL);
-  sema_up(&priority_sema);
   if(!highest_priority()){
-   // thread_yield_up_sema(&priority_sema);
     thread_yield();
   }
 }
@@ -440,9 +433,7 @@ thread_set_nice (int new_nice)
 int
 thread_get_nice (void) 
 {
-  sema_down(&priority_sema);
   int nice = thread_current() -> niceness;
-  sema_up(&priority_sema);
   return nice;
 }
 
@@ -451,9 +442,7 @@ int
 thread_get_load_avg (void) 
 {
   //load avg is stored as fixed point format so div by conv to get value
-  sema_down(&priority_sema);
   int avg = load_avg;
-  sema_up(&priority_sema);
   return (100*avg + FP_CONV / 2) / FP_CONV;
 }
 
@@ -462,9 +451,7 @@ int
 thread_get_recent_cpu (void) 
 {
   //since recent is stored in foxed point format - has to div by conv to get real value
-  sema_down(&priority_sema);
   int recent = thread_current()-> recent_cpu;
-  sema_up(&priority_sema);
   return (100*recent + FP_CONV / 2) / FP_CONV;
 }
 
@@ -482,7 +469,7 @@ calc_priority_of(struct thread* t){
 /* Recalculate priority of thread t, move queue, 
  * but DOES NOT YIELD OR BLOCK CURRENT THREAD EVER, because it is also used by thread_foreach 
  * which is called when interrupt is turned off.   
- * Must be called by a function that is synchronized. 
+ * MUST be called by a function that is synchronized with priority_sema UNLESS called to non ready threads. 
  */
 void
 update_priority_of(struct thread* t, void* aux UNUSED){
@@ -493,7 +480,6 @@ update_priority_of(struct thread* t, void* aux UNUSED){
   }
 }
 
-//any calls to this function should operate priority_sema
 void 
 update_recent_cpu_of(struct thread* t, void* aux UNUSED){
   int avg = load_avg ;  
@@ -520,12 +506,9 @@ update_load_avg(void){
   printf("ready threads excluding current = %i\n", ready_threads);
 
   if(thread_current() != idle_thread){
-  //if (strcmp(thread_current()-> name,"idle") != 0) {
 	ready_threads += 1;
   }
- // printf("ready threads = %i", ready_threads);
   load_avg = (59*load_avg)/60 + (FP_CONV/60)*(ready_threads);
- // printf("load avg= %i\n", load_avg);
 }
 
 /* ----------------------------------------------------------------------------- */

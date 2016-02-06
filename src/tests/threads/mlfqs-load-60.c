@@ -121,7 +121,7 @@ test_mlfqs_load_60 (void)
   start_time = timer_ticks ();
   msg ("Starting %d niced load threads...", THREAD_CNT);
   printf("thread current name = %s\n", thread_current() -> name);
-  intr_disable();
+  //intr_disable();
   printf("!!interrupt disabled in test: level =");
   if(intr_get_level() == INTR_OFF)
     printf("INTR_OFF");
@@ -133,7 +133,7 @@ test_mlfqs_load_60 (void)
       snprintf(name, sizeof name, "load %d", i);
       thread_create (name, PRI_DEFAULT, load_thread, NULL);
     }
-  intr_enable();
+  //intr_enable();
   printf("interrupt enabled in test level: ");
   if(intr_get_level() == INTR_ON)
     printf("INTR_ON");
