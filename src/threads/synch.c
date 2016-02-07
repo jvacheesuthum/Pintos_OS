@@ -31,7 +31,6 @@
 #include <string.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-#include "devices/timer.h"
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
@@ -200,7 +199,7 @@ lock_init (struct lock *lock)
 
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
-  lock->lockid = timer_ticks();
+
 }
 
 /* Acquires LOCK, sleeping until it becomes available if
@@ -218,14 +217,38 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  struct thread *holder = lock->holder;
+
   if (!sema_try_down (&lock->semaphore)) {
-    printf(thread_current ()->name);
-    printf(" wants to acquire lock ");
-    printf(lock);
-    printf(" will donate priority %i\n", thread_current()->priority);
-    donate_priority (lock, thread_current()->priority);
-    printf("donated.");
-    sema_down (&lock->semaphore);
+    if (thread_current()->priority > holder->base_priority) {
+      if (thread_current()->priority > holder->priority) {
+	sema_try_down(&holder->priority_change);
+	int original = holder->priority;
+	holder->priority = thread_current()->priority;
+	sema_down(&lock->semaphore);
+	if (is_thread(holder)) {
+	  ASSERT(holder->priority == thread_current()->priority);
+	  holder->priority = original;
+	  if (holder->priority_change.value == 0) {
+	    sema_up(&holder->priority_change);
+	  }
+	}
+      } else {
+	sema_down(&holder->priority_change);
+	if (sema_try_down(&lock->semaphore)) {
+	  if (is_thread(holder)) {
+	    sema_up(&holder->priority_change);
+	  }
+	} else {
+	  if (is_thread(holder)) {
+	    sema_up(&holder->priority_change);
+	  }
+	  lock_acquire(lock);	  
+	}
+      }
+    } else {
+      sema_down (&lock->semaphore);
+    }
   }
 
   lock->holder = thread_current ();
@@ -262,15 +285,12 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
-  printf(thread_current()->name);
-  printf(" is releasing lock ");
-  printf(lock);
-  printf("\n");
-  int restored = restore_priority (lock);
-  if (restored == 1) printf("restored");
   lock->holder = NULL;
   sema_up (&lock->semaphore);
-  if (restored == 1) thread_yield();
+  if (thread_current()->priority > thread_current()->base_priority) {
+    thread_yield();
+  }
+
 }
 
 /* Returns true if the current thread holds LOCK, false

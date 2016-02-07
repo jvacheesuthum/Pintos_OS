@@ -68,7 +68,7 @@ static void idle (void *aux UNUSED);
 static struct thread *running_thread (void);
 static struct thread *next_thread_to_run (void);
 static void init_thread (struct thread *, const char *name, int priority);
-static bool is_thread (struct thread *) UNUSED;
+bool is_thread (struct thread *) UNUSED;
 static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
@@ -390,132 +390,6 @@ highest_priority (void)
   return true;
 }
 
-/*priority donation */ 
-struct donation
-  {
-    struct list_elem elem;
-    int64_t lockid;
-    int priority;
-  };
-
-static void
-update_pList(struct lock *lock, int new_priority)
-{
-  struct thread *t = lock->holder;
-    //find if same lock already exists in pList
-  struct list_elem *e = list_begin(&t->pList);
-  struct donation *found = NULL;
-  printf("update pList looking for lock ");
-  printf(lock->lockid);
-  printf("\n");
-  while (e != list_end (&t->pList)) {
-    struct donation *d = list_entry (e, struct donation, elem);
-    printf("got lock");
-    printf(d->lockid);
-    printf("\n");
-    if (d->lockid == lock->lockid) {
-      ASSERT (found == NULL);
-      printf("update pList found.\n");
-      found = d;
-    }
-    e = list_next(e);
-  }
-  if (found != NULL) {
-    printf("echo update pList found.\n");
-    if (new_priority > found->priority) {
-      printf("will update\n");
-      list_remove(&found->elem);
-      found == NULL;
-    }
-  }
-  if (found == NULL) {
-    //insert in order
-    printf("updating\n");
-    struct donation new_donation;
-    new_donation.lockid = lock->lockid;
-    new_donation.priority = new_priority;
-
-    e = list_begin (&t->pList);
-    while (e != list_end(&t->pList)) {
-      if (new_priority > 
-	  (list_entry (e, struct donation, elem))->priority) {
-	break;
-      }
-      e = list_next(e);
-    }
-    list_insert (e, &new_donation.elem);
-  }
-  printf("update pList complete\n");
-}
-
-/* Given lock and priority p, if p is higher than the base priority
-   of the thread holding the lock, set p as the priority of the thread,
-   and save it's original priority in list */
-void
-donate_priority (struct lock *lock, int new_priority)
-{
-  printf("donating\n");
-  struct thread *t = lock->holder;
-  if (new_priority > t->base_priority) {
-    printf("got higher priority donate than base\n");
-    sema_down (&t->priority_change);
-    update_pList(lock, new_priority);
-    if (new_priority > t->priority) {
-      printf("change from priority %i", t->priority);
-      t->priority = new_priority;
-      printf(" to priority %i\n", t->priority);
-      if (t->status == THREAD_READY) {
-        printf("moving queues\n");
-	list_remove (&t->elem);
-	list_push_back(&(ready_queue[t->priority]), &t->elem);
-      }
-    }
-    sema_up (&t->priority_change);
-  }
-}
-
-/* Restore priority after donation, 
-   returns true if priority is lowered */
-int
-restore_priority (struct lock *lock)
-{
-  bool b = false;
-  struct thread *t = lock->holder;
-  if (!list_empty (&t->pList)) {
-    //there has been a donation
-    //find the record of this donation
-    sema_down (&t->priority_change);
-    struct list_elem *e = list_begin (&t->pList);
-    struct donation *d = list_entry (e, struct donation, elem);
-    printf("restore looking for %i\n", lock->lockid);
-    printf("searching list of size %i\n", list_size (&t->pList));
-    while ((e != list_end(&t->pList)) && (d->lockid != lock->lockid)) {
-      e = list_next(e);
-      d = list_entry (e, struct donation, elem);
-      printf("restore found lock %i\n", (d->lockid));
-    }
-    ASSERT (d->lockid == lock->lockid);
-    list_remove (e);
-    //if thread is not running with a higher donation than this
-    ASSERT (t->priority >= d->priority);
-    if (t->priority == d->priority) {
-      if (!list_empty (&t->pList)) {
-	struct donation *next = list_entry(list_pop_front(&t->pList),
-				 		struct donation, elem);
-	b = next->priority < t->priority;
-        t->priority = next->priority;
-      } else {
-        t->priority = t->base_priority;
-        b = true;
-      }
-    }
-    sema_up (&t->priority_change);
-  }
-  if (b)
-    return 1;
-  else
-    return 0;
-}
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
@@ -713,7 +587,7 @@ running_thread (void)
 }
 
 /* Returns true if T appears to point to a valid thread. */
-static bool
+bool
 is_thread (struct thread *t)
 {
   return t != NULL && t->magic == THREAD_MAGIC;
@@ -736,7 +610,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->base_priority = priority;
-  list_init (&t->pList);
   sema_init (&t->priority_change, 1);
   t->magic = THREAD_MAGIC;
   t->niceness = 0;
