@@ -183,10 +183,27 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
+  printf("_");
   enum intr_level old_level;
   ticks++;
   thread_tick ();
 
+  
+
+  /*alarm - when timer is sleeping*/
+  struct list_elem* e;
+  e = list_begin (&sleep_list);
+  while (e != list_end (&sleep_list)) {
+    struct sleeping_thread *st = list_entry (e, struct sleeping_thread, elem);
+    st->alarm_ticks--;
+    if (st->alarm_ticks <= 0) {
+      sema_up (&(st->sema));
+      e = list_remove(e);
+    } else {
+      e = list_next(e);
+    }
+  }
+  
   /*TASK1 mlfqs: updating recent_cpu values*/
   if(thread_mlfqs){
     thread_current() -> recent_cpu += FP_CONV;
@@ -204,21 +221,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
     }
     intr_set_level(old_level);
   }
-
-  /*alarm - when timer is sleeping*/
-  struct list_elem* e;
-  e = list_begin (&sleep_list);
-  while (e != list_end (&sleep_list)) {
-    struct sleeping_thread *st = list_entry (e, struct sleeping_thread, elem);
-    st->alarm_ticks--;
-    if (st->alarm_ticks <= 0) {
-      sema_up (&(st->sema));
-      e = list_remove(e);
-    } else {
-      e = list_next(e);
-    }
-  }
-
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

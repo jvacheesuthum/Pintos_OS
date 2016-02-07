@@ -199,7 +199,6 @@ thread_create (const char *name, int priority,
   if(thread_mlfqs){
     t-> niceness = thread_get_nice(); 
     t-> recent_cpu = thread_get_recent_cpu();
-    //printf("thread create dont calc priority, for debugging");
     t-> priority = calc_priority_of(t); 
   }
   /* Prepare thread for first run by initializing its stack.
@@ -230,7 +229,6 @@ thread_create (const char *name, int priority,
   /* if highest priority, run now */
   struct thread *cur = running_thread ();
   if (t->priority > cur->priority) {
-    printf("THREAD: %s YIELDDDDDDD\n", thread_current()->name);
     thread_yield ();
   }
 
@@ -513,12 +511,13 @@ update_load_avg(void){
   for (i = 63; i >= 0; i--) {
 	ready_threads += list_size(&ready_queue[i]);
   }
-  printf("ready threads excluding current = %i\n", ready_threads);
+  printf("ready threads excluding current = %i, ", ready_threads);
 
   if(thread_current() != idle_thread){
 	ready_threads += 1;
   }
   load_avg = (59*load_avg)/60 + (FP_CONV/60)*(ready_threads);
+  printf("load_avg = %i \n",load_avg);
 }
 
 /* ----------------------------------------------------------------------------- */
