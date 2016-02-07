@@ -224,13 +224,30 @@ lock_acquire (struct lock *lock)
     if (thread_current()->priority > holder->base_priority) {
       if (thread_current()->priority > holder->priority) {
 	sema_try_down(&holder->priority_change);
+	thread_current()->donatingTo = holder;
 	int original = holder->priority;
 	int base = holder->base_priority;
 	holder->priority = thread_current()->priority;
 	if (holder->status == THREAD_READY) {
 	  thread_change_queue(holder);
 	}
+	if (holder->status == THREAD_BLOCKED) {
+	  struct thread *nest = holder;
+	  while (nest->donatingTo != NULL) {
+	    nest = &nest->donatingTo;
+	    if (thread_current()->priority > nest->priority) {
+	      nest->priority = thread_current()->priority;
+	    } else {
+	      break;
+	    }
+	    if (nest->status == THREAD_READY) {
+	      ASSERT (nest->donatingTo != NULL);
+	      thread_change_queue(nest);
+	    }
+	  }
+	}
 	sema_down(&lock->semaphore);
+	thread_current()->donatingTo = NULL;
 	if (is_thread(holder)) {
 	  ASSERT(holder->priority == thread_current()->priority
 		|| holder->priority == holder->base_priority);

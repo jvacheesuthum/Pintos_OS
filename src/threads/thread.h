@@ -91,6 +91,7 @@ struct thread
     int priority;                       /* Priority. */
     int base_priority;			/* Priority when created, do no change */
     struct semaphore priority_change;	/* controls change of priority */
+    struct thread* donatingTo;		/* for nested donations */
     int niceness;
     int recent_cpu;
     struct list_elem allelem;           /* List element for all threads list. */

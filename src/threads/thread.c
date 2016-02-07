@@ -622,6 +622,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->base_priority = priority;
   sema_init (&t->priority_change, 1);
+  t->donatingTo = NULL;
   t->magic = THREAD_MAGIC;
   t->niceness = 0;
   t->recent_cpu = 0;
