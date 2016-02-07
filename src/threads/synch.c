@@ -232,16 +232,18 @@ lock_acquire (struct lock *lock)
 	  thread_change_queue(holder);
 	}
 	if (holder->status == THREAD_BLOCKED) {
+	  printf("detected thread blocked.\n");
 	  struct thread *nest = holder;
 	  while (nest->donatingTo != NULL) {
-	    nest = &nest->donatingTo;
+	    nest = nest->donatingTo;
+	    ASSERT (is_thread(nest));
 	    if (thread_current()->priority > nest->priority) {
 	      nest->priority = thread_current()->priority;
+	      printf("nested donation made.\n");
 	    } else {
 	      break;
 	    }
 	    if (nest->status == THREAD_READY) {
-	      ASSERT (nest->donatingTo != NULL);
 	      thread_change_queue(nest);
 	    }
 	  }
