@@ -457,7 +457,7 @@ thread_get_recent_cpu (void)
 /* Must be called by a function that is synchronized */
 int
 calc_priority_of(struct thread* t){
-  int calc_pri = PRI_MAX - ((t-> recent_cpu)/FP_CONV)/4 - (t-> niceness)/2;
+  int calc_pri = PRI_MAX - ((t-> recent_cpu)/FP_CONV)/4 - (t-> niceness)*2;
   if(t == idle_thread){
     calc_pri = 0;
   }
