@@ -232,6 +232,9 @@ lock_acquire (struct lock *lock)
 	if (is_thread(holder)) {
 	  ASSERT(holder->priority == thread_current()->priority);
 	  holder->priority = original;
+	  if (holder->status == THREAD_READY) {
+	    thread_change_queue(holder);
+	  }
 	  if (holder->priority_change.value == 0) {
 	    sema_up(&holder->priority_change);
 	  }
