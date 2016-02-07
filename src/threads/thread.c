@@ -463,6 +463,12 @@ calc_priority_of(struct thread* t){
   if(t == idle_thread){
     calc_pri = 0;
   }
+  if(calc_pri < 0){
+    calc_pri = 0;
+  }
+  if(calc_pri > 63){
+    calc_pri = 63;
+  }
   return calc_pri;
 }
 
