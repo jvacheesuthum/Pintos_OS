@@ -395,13 +395,16 @@ highest_priority (void)
 void
 thread_set_priority (int new_priority) 
 {
-  sema_down (&thread_current()->priority_change);
   int old = thread_current ()->priority;
-  thread_current ()->priority = new_priority;
-  thread_current ()->base_priority = new_priority;
-  sema_up (&thread_current()->priority_change);
+  if (sema_try_down (&thread_current()->priority_change)) {
+    thread_current ()->priority = new_priority;
+    sema_up (&thread_current()->priority_change);
+  } else if (new_priority > old) {
+    thread_current ()->priority = new_priority;
+  }
+  thread_current ()->base_priority = new_priority;  
 
-  if (new_priority < old) {
+  if (thread_current ()->priority < old) {
     if (!highest_priority()) {
       thread_yield();
     }

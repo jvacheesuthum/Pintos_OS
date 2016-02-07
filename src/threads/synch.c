@@ -225,14 +225,20 @@ lock_acquire (struct lock *lock)
       if (thread_current()->priority > holder->priority) {
 	sema_try_down(&holder->priority_change);
 	int original = holder->priority;
+	int base = holder->base_priority;
 	holder->priority = thread_current()->priority;
 	if (holder->status == THREAD_READY) {
 	  thread_change_queue(holder);
 	}
 	sema_down(&lock->semaphore);
 	if (is_thread(holder)) {
-	  ASSERT(holder->priority == thread_current()->priority);
-	  holder->priority = original;
+	  ASSERT(holder->priority == thread_current()->priority
+		|| holder->priority == holder->base_priority);
+	  if (holder->base_priority == base) {
+	    holder->priority = original;
+	  } else {
+	    holder->priority = holder->base_priority;
+	  }
 	  if (holder->status == THREAD_READY) {
 	    thread_change_queue(holder);
 	  }
