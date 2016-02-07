@@ -408,6 +408,14 @@ thread_set_priority (int new_priority)
   }  
 }
 
+void
+thread_change_queue (struct thread* t)
+{
+  ASSERT(t->status == THREAD_READY)
+  list_remove(&t->elem);
+  list_push_back(&(ready_queue[t->priority]), &t->elem);
+}
+
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
