@@ -217,6 +217,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
       printf("priority_sema waiters size = %i,", list_size(&((&priority_sema)->waiters)));
       update_load_avg();
       thread_foreach(&update_recent_cpu_of, NULL);
+    }
+    if(timer_ticks() % 4 == 0){
       thread_foreach(&update_priority_of, NULL);
     }
     intr_set_level(old_level);

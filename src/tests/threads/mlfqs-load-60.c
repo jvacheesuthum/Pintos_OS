@@ -119,6 +119,7 @@ test_mlfqs_load_60 (void)
   ASSERT (thread_mlfqs);
 
   start_time = timer_ticks ();
+  printf("start_time = %i \n", start_time);
   msg ("Starting %d niced load threads...", THREAD_CNT);
   for (i = 0; i < THREAD_CNT; i++) 
     {
