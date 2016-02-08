@@ -68,7 +68,7 @@ static void idle (void *aux UNUSED);
 static struct thread *running_thread (void);
 static struct thread *next_thread_to_run (void);
 static void init_thread (struct thread *, const char *name, int priority);
-static bool is_thread (struct thread *) UNUSED;
+bool is_thread (struct thread *) UNUSED;
 static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
@@ -390,18 +390,33 @@ highest_priority (void)
   return true;
 }
 
+
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) 
 {
   int old = thread_current ()->priority;
-  thread_current ()->priority = new_priority;
+  if (sema_try_down (&thread_current()->priority_change)) {
+    thread_current ()->priority = new_priority;
+    sema_up (&thread_current()->priority_change);
+  } else if (new_priority > old) {
+    thread_current ()->priority = new_priority;
+  }
+  thread_current ()->base_priority = new_priority;  
 
-  if (new_priority < old) {
+  if (thread_current ()->priority < old) {
     if (!highest_priority()) {
       thread_yield();
     }
   }  
+}
+
+void
+thread_change_queue (struct thread* t)
+{
+  ASSERT(t->status == THREAD_READY)
+  list_remove(&t->elem);
+  list_push_back(&(ready_queue[t->priority]), &t->elem);
 }
 
 /* Returns the current thread's priority. */
@@ -570,7 +585,7 @@ kernel_thread (thread_func *function, void *aux)
   function (aux);       /* Execute the thread function. */
   thread_exit ();       /* If function() returns, kill the thread. */
 }
-
+
 /* Returns the running thread. */
 struct thread *
 running_thread (void) 
@@ -586,7 +601,7 @@ running_thread (void)
 }
 
 /* Returns true if T appears to point to a valid thread. */
-static bool
+bool
 is_thread (struct thread *t)
 {
   return t != NULL && t->magic == THREAD_MAGIC;
@@ -608,6 +623,9 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->base_priority = priority;
+  sema_init (&t->priority_change, 1);
+  t->donatingTo = NULL;
   t->magic = THREAD_MAGIC;
   t->niceness = 0;
   t->recent_cpu = 0;

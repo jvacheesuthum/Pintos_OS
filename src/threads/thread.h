@@ -3,6 +3,7 @@
 
 #include <debug.h>
 #include <list.h>
+#include "synch.h"
 #include <stdint.h>
 
 /* States in a thread's life cycle. */
@@ -88,6 +89,9 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    int base_priority;			/* Priority when created, do no change */
+    struct semaphore priority_change;	/* controls change of priority */
+    struct thread* donatingTo;		/* for nested donations */
     int niceness;
     int recent_cpu;
     struct list_elem allelem;           /* List element for all threads list. */
@@ -124,6 +128,7 @@ void thread_unblock (struct thread *);
 struct thread *thread_current (void);
 tid_t thread_tid (void);
 const char *thread_name (void);
+bool is_thread (struct thread *t);
 
 void thread_exit (void) NO_RETURN;
 
@@ -133,6 +138,8 @@ void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+
+void thread_change_queue (struct thread* t);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
