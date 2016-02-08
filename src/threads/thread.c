@@ -60,7 +60,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 int load_avg;
-struct semaphore priority_sema;
+static struct semaphore priority_sema;
 
 static void kernel_thread (thread_func *, void *aux);
 
@@ -269,7 +269,6 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_front (&(ready_queue[t->priority]), &t->elem);
   t->status = THREAD_READY;
-  //printf("thread_unblock %s \n", t-> name);
   intr_set_level (old_level);
 }
 
@@ -415,8 +414,10 @@ void
 thread_change_queue (struct thread* t)
 {
   ASSERT(t->status == THREAD_READY)
+  sema_down(&priority_sema);
   list_remove(&t->elem);
   list_push_back(&(ready_queue[t->priority]), &t->elem);
+  sema_up(&priority_sema);
 }
 
 /* Returns the current thread's priority. */
@@ -525,13 +526,11 @@ update_load_avg(void){
   for (i = 63; i >= 0; i--) {
 	ready_threads += list_size(&ready_queue[i]);
   }
- // printf("ready threads excluding current = %i, ", ready_threads);
 
   if(thread_current() != idle_thread){
 	ready_threads += 1;
   }
   load_avg = (59*load_avg)/60 + (FP_CONV/60)*(ready_threads);
-  //printf("load_avg = %i \n",load_avg);
 }
 
 /* ----------------------------------------------------------------------------- */
@@ -659,7 +658,6 @@ next_thread_to_run (void)
   int i;
   for (i = 63; i >= 0; i--) {
     if (!list_empty(&(ready_queue[i]))) {
-     // printf("popping at list %i\n", i);
       return list_entry (list_pop_front (&(ready_queue[i])), struct thread, elem);
     }
   }
@@ -723,7 +721,6 @@ thread_schedule_tail (struct thread *prev)
 static void
 schedule (void) 
 {
-  //printf("inside schedule function!");
   struct thread *cur = running_thread ();
   struct thread *next = next_thread_to_run ();
   struct thread *prev = NULL;
@@ -732,8 +729,6 @@ schedule (void)
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
 
-  //printf("schedule: switch cur= %s, ", cur->name);
-  //printf("next= %s \n", next->name); 
   if (cur != next) {
     prev = switch_threads (cur, next);
   }
