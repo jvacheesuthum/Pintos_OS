@@ -91,7 +91,6 @@ void
 thread_init (void) 
 {
   load_avg = 0;
-  thread_mlfqs = true;
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
@@ -199,7 +198,6 @@ thread_create (const char *name, int priority,
   if(thread_mlfqs){
     t-> niceness = thread_get_nice(); 
     t-> recent_cpu = thread_get_recent_cpu();
-    //printf("thread create dont calc priority, for debugging");
     t-> priority = calc_priority_of(t); 
   }
   /* Prepare thread for first run by initializing its stack.
@@ -230,7 +228,6 @@ thread_create (const char *name, int priority,
   /* if highest priority, run now */
   struct thread *cur = running_thread ();
   if (t->priority > cur->priority) {
-    printf("THREAD: %s YIELDDDDDDD\n", thread_current()->name);
     thread_yield ();
   }
 
@@ -270,7 +267,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&(ready_queue[t->priority]), &t->elem);
+  list_push_front (&(ready_queue[t->priority]), &t->elem);
   t->status = THREAD_READY;
   printf("thread_unblock %s \n", t-> name);
   intr_set_level (old_level);
@@ -459,9 +456,15 @@ thread_get_recent_cpu (void)
 /* Must be called by a function that is synchronized */
 int
 calc_priority_of(struct thread* t){
-  int calc_pri = PRI_MAX - ((t-> recent_cpu)/FP_CONV)/4 - (t-> niceness)/2;
+  int calc_pri = PRI_MAX - ((t-> recent_cpu)/FP_CONV)/4 - (t-> niceness)*2;
   if(t == idle_thread){
     calc_pri = 0;
+  }
+  if(calc_pri < 0){
+    calc_pri = 0;
+  }
+  if(calc_pri > 63){
+    calc_pri = 63;
   }
   return calc_pri;
 }
@@ -474,6 +477,10 @@ calc_priority_of(struct thread* t){
 void
 update_priority_of(struct thread* t, void* aux UNUSED){
   t-> priority = calc_priority_of(t);
+  if(t->priority < 0 || t->priority >63){
+    printf("update_priority_of: priority out of range! pri = %i \n", t->priority);
+    ASSERT(t->priority >= 0 && t->priority <= 63);
+  }
   if(t->status == THREAD_READY){
     list_remove(&t->elem); 
     list_push_back(&(ready_queue[t->priority]), &t->elem);
@@ -503,12 +510,13 @@ update_load_avg(void){
   for (i = 63; i >= 0; i--) {
 	ready_threads += list_size(&ready_queue[i]);
   }
-  printf("ready threads excluding current = %i\n", ready_threads);
+  printf("ready threads excluding current = %i, ", ready_threads);
 
   if(thread_current() != idle_thread){
 	ready_threads += 1;
   }
   load_avg = (59*load_avg)/60 + (FP_CONV/60)*(ready_threads);
+  printf("load_avg = %i \n",load_avg);
 }
 
 /* ----------------------------------------------------------------------------- */

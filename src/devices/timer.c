@@ -180,32 +180,16 @@ timer_print_stats (void)
 }
 
 /* Timer interrupt handler. */
+/* uses thread_yield_on_return at thread_tick () which causes the preempted thread to be yield after the interrupt */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
+  printf("_");
   enum intr_level old_level;
   ticks++;
   thread_tick ();
 
-  /*TASK1 mlfqs: updating recent_cpu values*/
-  if(thread_mlfqs){
-    thread_current() -> recent_cpu += FP_CONV;
-    old_level = intr_disable();
-    if(timer_ticks() % TIMER_FREQ == 0){
-      printf("one more second: current thread = %s,", thread_current() -> name);
-      printf("priority = %i,", thread_current()->priority);
-      printf("recent_cpu = %i \n", thread_current()-> recent_cpu);
-      printf("        niceness = %i, ", thread_current()->niceness);
-      printf("sleep_list size= %i,", list_size(&sleep_list));
-      printf("priority_sema waiters size = %i,", list_size(&((&priority_sema)->waiters)));
-      update_load_avg();
-//      printf("recent_cpu before = %i \n", thread_current()-> recent_cpu);
-      thread_foreach(&update_recent_cpu_of, NULL);
-  //    printf("recent_cpu after1 = %i \n", thread_current()-> recent_cpu);
-      thread_foreach(&update_priority_of, NULL);
-    }
-    intr_set_level(old_level);
-  }
+  
 
   /*alarm - when timer is sleeping*/
   struct list_elem* e;
@@ -220,7 +204,31 @@ timer_interrupt (struct intr_frame *args UNUSED)
       e = list_next(e);
     }
   }
-
+  
+  /*TASK1 mlfqs: updating recent_cpu values*/
+  if(thread_mlfqs){
+    bool forth_tick = timer_ticks() % 4 == 0;
+    bool sec_tick = timer_ticks() % 100 == 0;
+    struct thread* cur = thread_current();
+    cur -> recent_cpu += FP_CONV;
+    old_level = intr_disable();
+    if(forth_tick && (!sec_tick)){
+      update_priority_of(cur, NULL);
+    }
+    if(sec_tick){
+      printf("one more second: current thread = %s,", cur -> name);
+      printf("priority = %i,", cur->priority);
+      printf("recent_cpu = %i \n", cur-> recent_cpu);
+      printf("        niceness = %i, ", cur->niceness);
+      printf("sleep_list size= %i,", list_size(&sleep_list));
+      printf("priority_sema waiters size = %i,", list_size(&((&priority_sema)->waiters)));
+      update_load_avg();
+      thread_foreach(&update_recent_cpu_of, NULL);
+      thread_foreach(&update_priority_of, NULL);
+    }
+    
+    intr_set_level(old_level);
+  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
