@@ -223,7 +223,11 @@ lock_acquire (struct lock *lock)
   if(!thread_mlfqs){
     if (!sema_try_down (&lock->semaphore)) {
       if (thread_current()->priority > holder->base_priority) {
+	// should donate to lower thread holding lock
         if (thread_current()->priority > holder->priority) {
+	  // a higher donation has not already been given
+	  // save and overwrite any lower donation if exist
+	  // down semaphore for priority change
           sema_try_down(&holder->priority_change);
           thread_current()->donatingTo = holder;
           int original = holder->priority;
@@ -233,6 +237,7 @@ lock_acquire (struct lock *lock)
             thread_change_queue(holder);
           }
           if (holder->status == THREAD_BLOCKED) {
+	    // nested donations
             struct thread *nest = holder;
             while (nest->donatingTo != NULL) {
               nest = nest->donatingTo;
@@ -247,9 +252,15 @@ lock_acquire (struct lock *lock)
               }
             }
           }
+	  // finished donation, wait for lock
           sema_down(&lock->semaphore);
+	  // after lock, restore priority before this donation
+	  // release priority change semaphore
+	  // semaphore wakes up lower donations waiting for thread (if exist)
           thread_current()->donatingTo = NULL;
           if (is_thread(holder)) {
+	    // any higher donation should have run and restored
+	    // priority is either this donation, or changed by thread set priority
             ASSERT(holder->priority == thread_current()->priority
           	|| holder->priority == holder->base_priority);
             if (holder->base_priority == base) {
@@ -265,6 +276,8 @@ lock_acquire (struct lock *lock)
             }
           }
         } else {
+	  // cannot donate now because higher priority thread has donated
+	  // wait and try again
           sema_down(&holder->priority_change);
           if (sema_try_down(&lock->semaphore)) {
             if (is_thread(holder)) {
@@ -278,6 +291,7 @@ lock_acquire (struct lock *lock)
           }
         }
       } else {
+	// thread with higher priority holds lock, just wait
         sema_down (&lock->semaphore);
       }
     }
@@ -322,6 +336,7 @@ lock_release (struct lock *lock)
   sema_up (&lock->semaphore);
   if(!thread_mlfqs){
     if (thread_current()->priority > thread_current()->base_priority) {
+      // has received a priority donation, should let donor run now
       thread_yield();
     }
   }
