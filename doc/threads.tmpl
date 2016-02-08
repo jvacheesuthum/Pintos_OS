@@ -141,6 +141,17 @@ ticks   A   B   C   A   B   C   to run
 >> time to work on this part of the task, how might you choose to
 >> refine or improve your design?
 
+adv.:
+at every 4th tick, it only updates the priority of the current thread becuase 
+priority is only effected by niceness and recent_cpu, and at every 4th ticks 
+only the recent_cpu of the current thread is changed. 
+
+
+
+if extra time:
+adding threads into queue one time after interrupt (1second update)
+
+
 >> B6: (5 marks)
 >> The assignment explains arithmetic for fixed-point mathematics in
 >> detail, but it leaves it open to you to implement it.  Why did you

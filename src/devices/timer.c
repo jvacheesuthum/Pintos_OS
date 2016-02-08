@@ -20,6 +20,9 @@
 
 
 static struct list sleep_list;
+/* to_update_list keeps tracks of the threads that recieved recent_cpu 
+ * incrementation, to be used and cleared after 4th tick priority update */
+static struct list to_update_list;
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
@@ -41,6 +44,7 @@ timer_init (void)
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
   list_init (&sleep_list);
+  list_init (&to_update_list);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -103,7 +107,7 @@ timer_sleep (int64_t ticks)
   list_push_back (&sleep_list, &(st.elem));
 
   ASSERT (intr_get_level () == INTR_ON);
-
+  
   sema_down(&(st.sema));
 }
 
@@ -207,10 +211,21 @@ timer_interrupt (struct intr_frame *args UNUSED)
     bool forth_tick = timer_ticks() % 4 == 0;
     bool sec_tick = timer_ticks() % 100 == 0;
     struct thread* cur = thread_current();
+    
+    /*increment recent_cpu*/
     cur -> recent_cpu += FP_CONV;
+    if(!(is_interior(cur -> update_elem))){
+      list_push_back(&to_update_list, &cur->update_elem);
+    }
     old_level = intr_disable();
     if(forth_tick && (!sec_tick)){
       update_priority_of(cur, NULL);
+      int el_size = list_size(&to_update_list);
+      struct list_elem* el;
+      while (el_size > 0){
+        el = list_pop_front(&to_update_list);
+        update_priority_of(el, NULL);
+      }
     }
     if(sec_tick){
       update_load_avg();

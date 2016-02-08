@@ -94,6 +94,7 @@ struct thread
     struct thread* donatingTo;		/* for nested donations */
     int niceness;
     int recent_cpu;
+    struct list_elem update_elem;       /* List element for to_update_list in timer.c */
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
