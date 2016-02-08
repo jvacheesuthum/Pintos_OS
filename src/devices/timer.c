@@ -184,7 +184,7 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
-  printf("_");
+  //printf("_");
   enum intr_level old_level;
   ticks++;
   thread_tick ();
@@ -216,12 +216,12 @@ timer_interrupt (struct intr_frame *args UNUSED)
       update_priority_of(cur, NULL);
     }
     if(sec_tick){
-      printf("one more second: current thread = %s,", cur -> name);
-      printf("priority = %i,", cur->priority);
-      printf("recent_cpu = %i \n", cur-> recent_cpu);
-      printf("        niceness = %i, ", cur->niceness);
-      printf("sleep_list size= %i,", list_size(&sleep_list));
-      printf("priority_sema waiters size = %i,", list_size(&((&priority_sema)->waiters)));
+      //printf("one more second: current thread = %s,", cur -> name);
+      //printf("priority = %i,", cur->priority);
+      //printf("recent_cpu = %i \n", cur-> recent_cpu);
+      //printf("        niceness = %i, ", cur->niceness);
+      //printf("sleep_list size= %i,", list_size(&sleep_list));
+      //printf("priority_sema waiters size = %i,", list_size(&((&priority_sema)->waiters)));
       update_load_avg();
       thread_foreach(&update_recent_cpu_of, NULL);
       thread_foreach(&update_priority_of, NULL);

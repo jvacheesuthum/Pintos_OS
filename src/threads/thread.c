@@ -269,7 +269,7 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_front (&(ready_queue[t->priority]), &t->elem);
   t->status = THREAD_READY;
-  printf("thread_unblock %s \n", t-> name);
+  //printf("thread_unblock %s \n", t-> name);
   intr_set_level (old_level);
 }
 
