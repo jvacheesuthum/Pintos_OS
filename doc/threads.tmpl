@@ -72,6 +72,36 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+struct thread
+  {
+    /* Owned by thread.c. */
+    tid_t tid;                          /* Thread identifier. */
+    enum thread_status status;          /* Thread state. */
+    char name[16];                      /* Name (for debugging purposes). */
+    uint8_t *stack;                     /* Saved stack pointer. */
+    int priority;                       /* Priority. */
+    int base_priority;			/* Priority when created, do no change */
+    struct semaphore priority_change;	/* controls change of priority */
+    struct thread* donatingTo;		/* for nested donations */
+    int niceness;
+    int recent_cpu;
+    struct list_elem allelem;           /* List element for all threads list. */
+
+    /* Shared between thread.c and synch.c. */
+    struct list_elem elem;              /* List element. */
+
+#ifdef USERPROG
+    /* Owned by userprog/process.c. */
+    uint32_t *pagedir;                  /* Page directory. */
+#endif
+
+    /* Owned by thread.c. */
+    unsigned magic;                     /* Detects stack overflow. */
+  };
+
+int niceness and int recent_cpu is added to the struct thread, because it is used by this scheduler to calculate priority.
+
+extern int load_avg; 
 ---- ALGORITHMS ----
 
 >> B2: (5 marks)

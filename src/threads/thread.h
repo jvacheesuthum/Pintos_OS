@@ -145,7 +145,7 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-extern int load_avg;  //******or initialise at system boot ?
+//extern int load_avg;  //******or initialise at system boot ?
 
 int calc_priority_of (struct thread* t);
 void update_recent_cpu_of (struct thread* t, void* aux);
