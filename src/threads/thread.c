@@ -531,7 +531,7 @@ update_load_avg(void){
 	ready_threads += 1;
   }
   load_avg = (59*load_avg)/60 + (FP_CONV/60)*(ready_threads);
-  printf("load_avg = %i \n",load_avg);
+  //printf("load_avg = %i \n",load_avg);
 }
 
 /* ----------------------------------------------------------------------------- */

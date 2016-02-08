@@ -220,67 +220,70 @@ lock_acquire (struct lock *lock)
 
   struct thread *holder = lock->holder;
 
-  if (!sema_try_down (&lock->semaphore)) {
-    if (thread_current()->priority > holder->base_priority) {
-      if (thread_current()->priority > holder->priority) {
-	sema_try_down(&holder->priority_change);
-	thread_current()->donatingTo = holder;
-	int original = holder->priority;
-	int base = holder->base_priority;
-	holder->priority = thread_current()->priority;
-	if (holder->status == THREAD_READY) {
-	  thread_change_queue(holder);
-	}
-	if (holder->status == THREAD_BLOCKED) {
-	  struct thread *nest = holder;
-	  while (nest->donatingTo != NULL) {
-	    nest = nest->donatingTo;
-	    ASSERT (is_thread(nest));
-	    if (thread_current()->priority > nest->priority) {
-	      nest->priority = thread_current()->priority;
-	    } else {
-	      break;
-	    }
-	    if (nest->status == THREAD_READY) {
-	      thread_change_queue(nest);
-	    }
-	  }
-	}
-	sema_down(&lock->semaphore);
-	thread_current()->donatingTo = NULL;
-	if (is_thread(holder)) {
-	  ASSERT(holder->priority == thread_current()->priority
-		|| holder->priority == holder->base_priority);
-	  if (holder->base_priority == base) {
-	    holder->priority = original;
-	  } else {
-	    holder->priority = holder->base_priority;
-	  }
-	  if (holder->status == THREAD_READY) {
-	    thread_change_queue(holder);
-	  }
-	  if (holder->priority_change.value == 0) {
-	    sema_up(&holder->priority_change);
-	  }
-	}
+  if(!thread_mlfqs){
+    if (!sema_try_down (&lock->semaphore)) {
+      if (thread_current()->priority > holder->base_priority) {
+        if (thread_current()->priority > holder->priority) {
+          sema_try_down(&holder->priority_change);
+          thread_current()->donatingTo = holder;
+          int original = holder->priority;
+          int base = holder->base_priority;
+          holder->priority = thread_current()->priority;
+          if (holder->status == THREAD_READY) {
+            thread_change_queue(holder);
+          }
+          if (holder->status == THREAD_BLOCKED) {
+            struct thread *nest = holder;
+            while (nest->donatingTo != NULL) {
+              nest = nest->donatingTo;
+              ASSERT (is_thread(nest));
+              if (thread_current()->priority > nest->priority) {
+                nest->priority = thread_current()->priority;
+              } else {
+                break;
+              }
+              if (nest->status == THREAD_READY) {
+                thread_change_queue(nest);
+              }
+            }
+          }
+          sema_down(&lock->semaphore);
+          thread_current()->donatingTo = NULL;
+          if (is_thread(holder)) {
+            ASSERT(holder->priority == thread_current()->priority
+          	|| holder->priority == holder->base_priority);
+            if (holder->base_priority == base) {
+              holder->priority = original;
+            } else {
+              holder->priority = holder->base_priority;
+            }
+            if (holder->status == THREAD_READY) {
+              thread_change_queue(holder);
+            }
+            if (holder->priority_change.value == 0) {
+              sema_up(&holder->priority_change);
+            }
+          }
+        } else {
+          sema_down(&holder->priority_change);
+          if (sema_try_down(&lock->semaphore)) {
+            if (is_thread(holder)) {
+              sema_up(&holder->priority_change);
+            }
+          } else {
+            if (is_thread(holder)) {
+              sema_up(&holder->priority_change);
+            }
+            lock_acquire(lock);	  
+          }
+        }
       } else {
-	sema_down(&holder->priority_change);
-	if (sema_try_down(&lock->semaphore)) {
-	  if (is_thread(holder)) {
-	    sema_up(&holder->priority_change);
-	  }
-	} else {
-	  if (is_thread(holder)) {
-	    sema_up(&holder->priority_change);
-	  }
-	  lock_acquire(lock);	  
-	}
+        sema_down (&lock->semaphore);
       }
-    } else {
-      sema_down (&lock->semaphore);
     }
+  } else {
+    sema_down(&lock->semaphore);
   }
-
   lock->holder = thread_current ();
 }
 
@@ -317,10 +320,11 @@ lock_release (struct lock *lock)
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);
-  if (thread_current()->priority > thread_current()->base_priority) {
-    thread_yield();
+  if(!thread_mlfqs){
+    if (thread_current()->priority > thread_current()->base_priority) {
+      thread_yield();
+    }
   }
-
 }
 
 /* Returns true if the current thread holds LOCK, false
