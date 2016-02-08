@@ -91,7 +91,6 @@ void
 thread_init (void) 
 {
   load_avg = 0;
-  thread_mlfqs = true;
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
@@ -268,7 +267,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&(ready_queue[t->priority]), &t->elem);
+  list_push_front (&(ready_queue[t->priority]), &t->elem);
   t->status = THREAD_READY;
   printf("thread_unblock %s \n", t-> name);
   intr_set_level (old_level);
