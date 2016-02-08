@@ -94,7 +94,7 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  printf("timer sleep called, current thread = %s\n", thread_current()->name);
+//  printf("timer sleep called, current thread = %s\n", thread_current()->name);
   ASSERT (intr_get_level () == INTR_ON);
 
   /*init sleeping thread*/

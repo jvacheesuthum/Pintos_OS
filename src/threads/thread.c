@@ -525,7 +525,7 @@ update_load_avg(void){
   for (i = 63; i >= 0; i--) {
 	ready_threads += list_size(&ready_queue[i]);
   }
-  printf("ready threads excluding current = %i, ", ready_threads);
+ // printf("ready threads excluding current = %i, ", ready_threads);
 
   if(thread_current() != idle_thread){
 	ready_threads += 1;
