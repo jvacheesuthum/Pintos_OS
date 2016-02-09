@@ -217,7 +217,8 @@ ticks   A   B   C   A   B   C   to run
 >> in the table uncertain?  If so, what rule did you use to resolve
 >> them?  Does this match the behaviour of your scheduler?
 
-The specification for BSD scheduler did not specify, if there are more than 1 thread with the same priority running, which order threads should be run in round-robin. For example during the 24th tick all 3 threads above have the same priority and they will not be updated until the next 4 ticks. This means these 4 ticks have to be divided among 3 threads. In our scheduler thread A will receive the extra tick, when there are leftover ticks they will be given to the threads in 'front' of the list of that priority. So here ready_queue[59] has a list of 3 threads with thread A in front of th queue. The 3 threads will receive 2 ticks, 1 tick, and 1 tick in respect to their order in the queue.
+The specification for BSD scheduler did not specify, if there are more than 1 thread with the same priority running, which order threads should be run in round-robin. For example during the 24th tick all 3 threads above have the same priority and they will not be updated until the next 4 ticks. This means these 4 ticks have to be divided among 3 threads. 
+In our scheduler thread A will receive the extra tick, when there are leftover ticks they will be given to the threads in 'front' of the list of that priority. So here ready_queue[59] has a list of 3 threads with thread A in front of th queue. The 3 threads will receive 2 ticks, 1 tick, and 1 tick in respect to their order in the queue.
 
 >> B4: (5 marks)
 >> How is the way you divided the cost of scheduling between code
