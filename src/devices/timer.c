@@ -20,9 +20,7 @@
 
 
 static struct list sleep_list;
-/* to_update_list keeps tracks of the threads that recieved recent_cpu 
- * incrementation, to be used and cleared after 4th tick priority update */
-static struct list to_update_list;
+
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
@@ -35,7 +33,6 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
-static bool list_contains( struct list* l, struct list_elem* e);
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -45,7 +42,6 @@ timer_init (void)
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
   list_init (&sleep_list);
-  list_init (&to_update_list);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -217,38 +213,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
     cur -> recent_cpu += FP_CONV;
     cur -> needs_update = true;
 
-/*
-    struct list_elem* upelem = &cur->update_elem;
-    if(upelem->prev == NULL){ //checks if cur->update_elem not interior, same as !is_interior
-      list_push_back(&to_update_list, upelem);
-    }
-
-    old_level = intr_disable();
-    if(forth_tick && (!sec_tick)){
-      int el_size = list_size(&to_update_list);
-      struct list_elem* el;
-      update_priority_of(cur, NULL);
-      while (el_size > 0){
-        el = list_pop_back(&to_update_list);
-        update_priority_of(list_entry(el, struct thread, update_elem), NULL);
-        el_size--;
-      }
-    }
-    if(sec_tick){
-      update_load_avg();
-      thread_foreach(&update_recent_cpu_of, NULL);
-      thread_foreach(&update_priority_of, NULL);
-      
-      int el_size = list_size(&to_update_list);
-      struct list_elem* el;
-      while (el_size > 0){
-        el = list_pop_back(&to_update_list);
-        el_size--;
-      }
-    }
-  intr_set_level(old_level);
-*/
-
     old_level = intr_disable();
     if(sec_tick){
       update_load_avg();
@@ -278,19 +242,6 @@ too_many_loops (unsigned loops)
   /* If the tick count changed, we iterated too long. */
   barrier ();
   return start != ticks;
-}
-
-static bool
-list_contains(struct list* l, struct list_elem* el){
-  struct list_elem* e;
-  e = list_begin (l);
-  while (e != list_end (l)) {
-    if(e == el){
-      return true;
-    }
-    e = list_next(e);
-  }
-  return false;
 }
 
 /* Iterates through a simple loop LOOPS times, for implementing

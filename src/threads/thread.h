@@ -95,7 +95,6 @@ struct thread
     int niceness;
     int recent_cpu;
     bool needs_update;
-    struct list_elem update_elem;       /* List element for to_update_list in timer.c */
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
