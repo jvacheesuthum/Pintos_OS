@@ -35,6 +35,7 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
+static bool list_contains( struct list* l, struct list_elem* e);
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -214,23 +215,33 @@ timer_interrupt (struct intr_frame *args UNUSED)
     
     /*increment recent_cpu*/
     cur -> recent_cpu += FP_CONV;
-    if(!(is_interior(cur -> update_elem))){
-      list_push_back(&to_update_list, &cur->update_elem);
+    struct list_elem* upelem = &cur->update_elem;
+    if(upelem->prev == NULL){ /*checks if cur->update_elem not interior, same as !is_interior*/
+      list_push_back(&to_update_list, upelem);
     }
+
     old_level = intr_disable();
     if(forth_tick && (!sec_tick)){
-      update_priority_of(cur, NULL);
       int el_size = list_size(&to_update_list);
       struct list_elem* el;
+      update_priority_of(cur, NULL);
       while (el_size > 0){
-        el = list_pop_front(&to_update_list);
-        update_priority_of(el, NULL);
+        el = list_pop_back(&to_update_list);
+        update_priority_of(list_entry(el, struct thread, update_elem), NULL);
+        el_size--;
       }
     }
     if(sec_tick){
       update_load_avg();
       thread_foreach(&update_recent_cpu_of, NULL);
       thread_foreach(&update_priority_of, NULL);
+      
+      int el_size = list_size(&to_update_list);
+      struct list_elem* el;
+      while (el_size > 0){
+        el = list_pop_back(&to_update_list);
+        el_size--;
+      }
     }
     
     intr_set_level(old_level);
@@ -254,6 +265,19 @@ too_many_loops (unsigned loops)
   /* If the tick count changed, we iterated too long. */
   barrier ();
   return start != ticks;
+}
+
+static bool
+list_contains(struct list* l, struct list_elem* el){
+  struct list_elem* e;
+  e = list_begin (l);
+  while (e != list_end (l)) {
+    if(e == el){
+      return true;
+    }
+    e = list_next(e);
+  }
+  return false;
 }
 
 /* Iterates through a simple loop LOOPS times, for implementing
