@@ -1,5 +1,3 @@
-            +----------------------+
-            |        OS 211        |
             |  TASK 1: SCHEDULING  |
             |    DESIGN DOCUMENT   |
             +----------------------+
@@ -45,6 +43,7 @@ struct thread
     //------ADVANCED SCHEDULER------//
     int niceness;
     int recent_cpu;
+    bool needs_update;
   };
 
 static struct list ready_queue[64];
@@ -55,7 +54,7 @@ int base_priority:
 struct semaphore priority_change:
 	Used as a lock during the change of priority of a thread (called in thread_set_priority (int)).
 struct thread* donatingTo:
-	Points to the thread that the this thread is donating to 
+	Points to the thread that this thread is donating to 
 	(E.g Thread A donates to thread B, Thread A's donatingTo will point to thread B).
 static struct list ready_queue[64]:
 	An array of list of ready threads with index position representing the thread's priority.
@@ -164,6 +163,33 @@ static struct semaphore priority_sema:
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+struct thread
+  {            
+    .
+    .
+    .
+    //------PRIORITY SCHEDULING-----//     
+    int base_priority;		
+    struct semaphore priority_change;	
+    struct thread* donatingTo;		
+
+    //------ADVANCED SCHEDULER------//
+    int niceness;
+    int recent_cpu;
+    bool needs_update;
+  };
+
+static struct semaphore priority_sema;
+
+int niceness: 
+        Used to store nice value of each thread.
+int recent_cpu: 
+        Used to store the recent_cpu value of each thread.
+bool needs_update:
+        Used to tell update_priority_of function if priority recalculation of this thread is necessary. 
+static struct semaphore priority_sema:
+	Used as a lock during the change of position of a thread in the ready queue (called in the thread_change_queue(struct thread *) method).
+
 ---- ALGORITHMS ----
 
 >> B2: (5 marks)
@@ -194,6 +220,7 @@ ticks   A   B   C   A   B   C   to run
 >> B4: (5 marks)
 >> How is the way you divided the cost of scheduling between code
 >> inside and outside interrupt context likely to affect performance?
+  
 
 ---- RATIONALE ----
 
@@ -202,6 +229,24 @@ ticks   A   B   C   A   B   C   to run
 >> disadvantages in your design choices.  If you were to have extra
 >> time to work on this part of the task, how might you choose to
 >> refine or improve your design?
+
+Advantage:
+  By keeping needs_update boolean value in the thread struct, the update_priority_of function works more efficiently when called, because if
+the thread does not need the priority recalculation i.e. needs_update is set to false, update_priority_of function does nothing and therefore saves 
+computation time. Without the need_update value, when update_priority_of function is called with thread_foreach to update all threads. For example, 
+at every forth ticks in timer_interrupt function, it will needs to recalculate the priority of all the threads in the system, which is unnecessary 
+because most threads will have the same value of niceness and recent_cpu as when it was previously updated so the priority would be unchanged.
+
+Disadvantage:
+  By using the needs_update value for each thread, the code is more error prone as although the function such as thread_set_nice has enforced setting of
+thread's needs_update value to true, other explicit updates to the recent_cpu or niceness will not automatically set the needs_update value to true. 
+
+Improvements:
+  We would consider having a list keeping track of the threads that needs update, and instead of trying to update priority of all of the threads in the
+system we could have only updates the threads in that list. This, however, might result in a worse performance because we would need to do some list operations 
+every time recent_cpu is updated on every ticks, which might make our current design a better design.
+  We would also consider making the needs_update automatically set when needed, i.e. when a thread's niceness and recent_cpu value is changed, this would 
+make the code less error prone. 
 
 >> B6: (5 marks)
 >> The assignment explains arithmetic for fixed-point mathematics in

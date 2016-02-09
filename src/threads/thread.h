@@ -94,7 +94,10 @@ struct thread
     struct thread* donatingTo;		/* for nested donations */
     int niceness;
     int recent_cpu;
-    bool needs_update;
+    bool needs_update;                  /* Tell update_priority_of function if priority recalculation 
+                                           of this thread is necessary. True when thread is created.
+                                           True when niceness or recent_cpu  is modified. 
+                                           Set back to false when update_priority_of is called */ 
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
