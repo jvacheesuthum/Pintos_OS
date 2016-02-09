@@ -52,30 +52,30 @@ static struct semaphore priority_sema;
 int base_priority: 
 	Stores the original priority of a thread before any donations.
 struct semaphore priority_change:
-	Used as a lock during the change of priority of a thread (called in thread_set_priority (int)).
+	Used during the change of priority of a thread (called in thread_set_priority and lock_acquire). 	 Holds and queues priority donations in waiters list.
 struct thread* donatingTo:
 	Points to the thread that this thread is donating to 
 	(E.g Thread A donates to thread B, Thread A's donatingTo will point to thread B).
 static struct list ready_queue[64]:
 	An array of list of ready threads with index position representing the thread's priority.
 static struct semaphore priority_sema:
-	Used as a lock during the change of position of a thread in the ready queue (called in the thread_change_queue(struct thread *) method).
+	Used to prevent concurrent modifications to ready_queue[64] when changing queue-level (priority) of a thread in the ready queue (called in the thread_change_queue(struct thread *) method).
 
 
 >> A2: (10 marks) 
 >> Explain the data structure used to track priority donation.
 >> Give a diagram that illustrates a nested donation in your structure.
 	
-	Most of the priority donation is done in lock_acquire() so each thread only need a pointer (donatingTo) which stores the address of the thread that it is donating to. Each thread also have a base_priority int which stores the priority of the thread before any donations. When lock_acquire() is called, it compares the priority of the current thread with the lock holder's priority and donates to the lock holder and to its donee (if the current thread's priority is higher). After the current thread finishes waiting (when the lock holder releases the lock), it will restore the holder's priority as described below in the algorithms section.
+	Most of the priority donation is done in lock_acquire() so each thread only needs a pointer (donatingTo) which stores the address of the thread that it is donating to. Each thread also has a base_priority int which stores the priority of the thread before any donations. When lock_acquire() is called, it compares the priority of the current thread with the lock holder's priority. If the current thread's priority is higher, it donates to the lock holder. Nested donations are made by following the donatingTo pointer of the lock holder. After the current thread finishes waiting (when the lock holder releases the lock), it will restore the holder's priority as described below in the algorithms section.
 
-    The diagram below shows three thread A, B, and C (High to low priority). Thread A is waiting for L1 which B is holding and B is waiting for L2 which C is holding.
+    The diagram below shows three threads A, B, and C (High to low priority). Thread A is waiting for L1 which B is holding and B is waiting for L2 which C is holding.
     An example of how this will be executed (assuming there is only three threads) :
       1) C acquires L2
       2) B acquires L1
       3) B tries to acquire L2
       4) B sets donatingTo to C, lock_acquire() stores pointer to C and C's priorities 
       5) B donates to C and waits
-      6) A tries to acquire L1
+      6) A tries to acquire 
       7) A sets donatingTo to B, lock_acquire() stores pointer to B and B's priorities
       8) A donates to B, detect that B's donatingTo != NULL, so continue to donate to C then waits
 
@@ -112,7 +112,7 @@ static struct semaphore priority_sema:
 >> How do you ensure that the highest priority thread waiting for
 >> a lock, semaphore, or condition variable wakes up first?
 
-	In sema_up(struct semaphore *), it loops through the list of waiters and finds the thread with the highest priority. It then increment the semaphore's value and if this priority is higher than the current thread's priority, thread_yield() is called so the higher priority thread will run.
+	In sema_up(struct semaphore *), it loops through the list of waiters and finds the thread with the highest priority. It then increment the semaphore's value and if this priority is higher than the current thread's priority, thread_yield() is called so the higher priority thread which has just woken up will run.
 
 	A thread waiting for a lock will be stored in the list of waiters of the lock's semaphore. When the lock is available, it will call sema_up() and the highest priority thread will run as described above. 
 
@@ -122,15 +122,15 @@ static struct semaphore priority_sema:
 >> Describe the sequence of events when a call to lock_acquire()
 >> causes a priority donation.  How is nested donation handled?
 
-  	When a thread (donor) is trying to acquire a lock (L1), lock_acquire() will first save the lock's holder into a pointer. Then if its priority is higher than the holder's priority, it will set the donor thread's donatingTo to point to the holder. The holder's priority and base_priority will be saved before changing the priority to the donor's priority. If the holder status is ready, thread_change_queue() will be called to change the position of the holder in ready_queue. However, if the holder is waiting for another lock (L2), lock_acquire() will save the holder using a pointer and get the holder of L2 by looking at the donatingTo of the L1's holder (assuming L1's holder is donating to L2's holder, or else it would be null and never enter the loop). The priority of the holder of L2 will then be changed if it is lower than the current thread. This will loop by saving the holder of L2 and going through the same process until donatingTo == NULL, which means the saved holder is not a donor. After the loop, sema_down() is called back on L1's semaphore so the current thread waits.
+  	When a thread (donor) is trying to acquire a lock (L1), lock_acquire() will first save the lock's holder into a pointer (holder). Then if its priority is higher than the holder's priority, it will set the donor thread's donatingTo to point to the holder. The holder's priority and base_priority will be saved before changing the priority to the donor's priority. If the holder's status is ready, thread_change_queue() will be called to change the position of the holder in ready_queue. However, if the holder is waiting for another lock (L2) held by another thread, lock_acquire() will save the holder using a pointer and get the holder of L2 by looking at the donatingTo of the L1's holder (assuming L1's holder is donating to L2's holder, or else it would be null and never enter the loop). The priority of the holder of L2 will then be changed if it is lower than the current thread. This will loop by saving the holder of L2 and going through the same process until donatingTo == NULL, which means the saved holder is not donating to any thread and there are no more nested donations to be made. After the loop, sema_down() is called back on L1's semaphore so the current thread waits.
 
-  	When the thread wakes up, it will set its donatingTo to null and by using the saved lock's holder in the beginning, we can get the thread that released L1. We then set the holder's priority to it's base or original priority (that we saved before changing its priority) depending if the base_priority changed. The lock's holder will be set to the thread that woke up.
+  	When the thread wakes up, it will set its donatingTo to null and by using the saved pointer to the lock's holder in the beginning, we can get the thread that released L1. We then set the holder's priority to it's base or original priority (that we saved before changing its priority) depending if the base_priority changed. The lock's holder will be set to the thread that woke up.
 
 >> A5: (5 marks)
 >> Describe the sequence of events when lock_release() is called
 >> on a lock that a higher-priority thread is waiting for.
 
-	lock_release() will set the lock's holder to null and 'up' the lock's semaphore so the highest priority thread waiting for the lock can run. It then checks if the current thread's priority is greater than its base priority and if it is, it will call thread_yield() so the donor thread will run (the donor thread has to change the priority of the current thread). The donor thread which is waiting for the lock will change the priority of the previous lock holder.
+	lock_release() will set the lock's holder to null and 'up' the lock's semaphore so the highest priority thread waiting for the lock will be placed in the ready queue. It then checks if the current thread's priority is greater than its base priority and if it is, this means that the current thread has received a donation, and should let the donor thread run. It will call thread_yield(). The donor thread which is waiting for the lock will resume from lock_acquire, and restore the priority of the previous lock holder.
 
 ---- SYNCHRONIZATION ----
 
@@ -217,7 +217,8 @@ ticks   A   B   C   A   B   C   to run
 >> in the table uncertain?  If so, what rule did you use to resolve
 >> them?  Does this match the behaviour of your scheduler?
 
-The specification for BSD scheduler did not specify, if there are more than 1 thread with the same priority running, which order threads should be run in round-robin. For example during the 24th tick all 3 threads above have the same priority and they will not be updated until the next 4 ticks. This means these 4 ticks have to be divided among 3 threads. In our scheduler thread A will receive the extra tick, when there are leftover ticks they will be given to the threads in 'front' of the list of that priority. So here ready_queue[59] has a list of 3 threads with thread A in front of th queue. The 3 threads will receive 2 ticks, 1 tick, and 1 tick in respect to their order in the queue.
+The specification for BSD scheduler did not specify, if there are more than 1 thread with the same priority running, which order threads should be run in round-robin. For example during the 24th tick all 3 threads above have the same priority and they will not be updated until the next 4 ticks. This means these 4 ticks have to be divided among 3 threads. 
+In our scheduler thread A will receive the extra tick, when there are leftover ticks they will be given to the threads in 'front' of the list of that priority. So here ready_queue[59] has a list of 3 threads with thread A in front of th queue. The 3 threads will receive 2 ticks, 1 tick, and 1 tick in respect to their order in the queue.
 
 >> B4: (5 marks)
 >> How is the way you divided the cost of scheduling between code
