@@ -257,5 +257,3 @@ make the code less error prone.
 >> abstraction layer for fixed-point mathematics, that is, an abstract
 >> data type and/or a set of functions or macros to manipulate
 >> fixed-point numbers, why did you do so?  If not, why not?S
-
-Values of recent_cpu and load_avg are stored in 17.14 fixed point number format (int). The 17.14 precision allows a fairly high maximum value to be held and decent decimal point precision. There is no abstraction layer in the implementation for the calculations. FP_CONV is defined to be 2^14 which is our f value, which is used throughout functions involving load_avg and recent_cpu for conversions from and to fixed point format. An abstraction layer was not created as the conversions within these functions are fairly easy to cope with and follow. A few conversion and arithmetic macros could've been useful in readability. 
