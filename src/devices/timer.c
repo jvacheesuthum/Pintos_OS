@@ -215,8 +215,11 @@ timer_interrupt (struct intr_frame *args UNUSED)
     
     /*increment recent_cpu*/
     cur -> recent_cpu += FP_CONV;
+    cur -> needs_update = true;
+
+/*
     struct list_elem* upelem = &cur->update_elem;
-    if(upelem->prev == NULL){ /*checks if cur->update_elem not interior, same as !is_interior*/
+    if(upelem->prev == NULL){ //checks if cur->update_elem not interior, same as !is_interior
       list_push_back(&to_update_list, upelem);
     }
 
@@ -243,7 +246,17 @@ timer_interrupt (struct intr_frame *args UNUSED)
         el_size--;
       }
     }
-    
+  intr_set_level(old_level);
+*/
+
+    old_level = intr_disable();
+    if(sec_tick){
+      update_load_avg();
+      thread_foreach(&update_recent_cpu_of, NULL);
+    }
+    if(forth_tick){
+      thread_foreach(&update_priority_of, NULL);
+    }
     intr_set_level(old_level);
   }
 }

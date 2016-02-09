@@ -195,6 +195,7 @@ thread_create (const char *name, int priority,
   tid = t->tid = allocate_tid ();
  
   /* TASK1 mlfqs: calculate the thread's priority */
+  t->needs_update = true;
   if(thread_mlfqs){
     t-> niceness = thread_get_nice(); 
     t-> recent_cpu = thread_get_recent_cpu();
@@ -434,6 +435,7 @@ void
 thread_set_nice (int new_nice) 
 {
   struct thread* cur = thread_current();
+  cur -> needs_update = true;
   cur-> niceness = new_nice;
   update_recent_cpu_of(cur, NULL);
   update_priority_of(cur, NULL);
@@ -492,19 +494,23 @@ calc_priority_of(struct thread* t){
  */
 void
 update_priority_of(struct thread* t, void* aux UNUSED){
-  t-> priority = calc_priority_of(t);
-  if(t->priority < 0 || t->priority >63){
-    printf("update_priority_of: priority out of range! pri = %i \n", t->priority);
-    ASSERT(t->priority >= 0 && t->priority <= 63);
-  }
-  if(t->status == THREAD_READY){
-    list_remove(&t->elem); 
-    list_push_back(&(ready_queue[t->priority]), &t->elem);
+  if(t->needs_update){
+    t->needs_update = false;
+    t-> priority = calc_priority_of(t);
+    if(t->priority < 0 || t->priority >63){
+      printf("update_priority_of: priority out of range! pri = %i \n", t->priority);
+      ASSERT(t->priority >= 0 && t->priority <= 63);
+    }
+    if(t->status == THREAD_READY){
+      list_remove(&t->elem); 
+      list_push_back(&(ready_queue[t->priority]), &t->elem);
+    }
   }
 }
 
 void 
 update_recent_cpu_of(struct thread* t, void* aux UNUSED){
+  t-> needs_update = true;
   int avg = load_avg ;  
   int nice = t -> niceness;
   nice *= FP_CONV;
