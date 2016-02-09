@@ -222,7 +222,10 @@ The specification for BSD scheduler did not specify, if there are more than 1 th
 >> B4: (5 marks)
 >> How is the way you divided the cost of scheduling between code
 >> inside and outside interrupt context likely to affect performance?
-  
+  We have designed our code to minimise the cost of scheduling, or any other calculations, in the interrupt context. 
+This would improve the performance of the system, becuase timer interrupt occurs once every 0.01 second, and therefore 
+the shorter the time it takes to perform this interrupt, the shorter the time preempted threads is blocked in the overall
+system and therefore the those threads would take less time to finish its task. This system will therefore be more responsive. 
 
 ---- RATIONALE ----
 
