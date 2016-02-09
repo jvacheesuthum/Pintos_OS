@@ -1,0 +1,212 @@
+            +----------------------+
+            |        OS 211        |
+            |  TASK 1: SCHEDULING  |
+            |    DESIGN DOCUMENT   |
+            +----------------------+
+                   
+---- GROUP ----
+
+>> Fill in the names and email addresses of your group members.
+
+Ho Law <hcl114@ic.ac.uk>
+Jiranart Vacheesuthum <jv1814@ic.ac.uk>
+Vasin Wongrassamee <vw214.ic.ac.uk>
+Kam Chiu <klc114@ic.ac.uk>
+
+---- PRELIMINARIES ----
+
+>> If you have any preliminary comments on your submission, or notes for the
+>> markers, please give them here.
+
+>> Please cite any offline or online sources you consulted while
+>> preparing your submission, other than the Pintos documentation, course
+>> text, lecture notes, and course staff.
+
+             PRIORITY SCHEDULING
+             ===================
+
+---- DATA STRUCTURES ----
+
+>> A1: (5 marks) 
+>> Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+struct thread
+  {            
+    .
+    .
+    .
+    //------PRIORITY SCHEDULING-----//     
+    int base_priority;		
+    struct semaphore priority_change;	
+    struct thread* donatingTo;		
+
+    //------ADVANCED SCHEDULER------//
+    int niceness;
+    int recent_cpu;
+  };
+
+static struct list ready_queue[64];
+static struct semaphore priority_sema;
+
+int base_priority: 
+	Stores the original priority of a thread before any donations.
+struct semaphore priority_change:
+	Used as a lock during the change of priority of a thread (called in thread_set_priority (int)).
+struct thread* donatingTo:
+	Points to the thread that the this thread is donating to 
+	(E.g Thread A donates to thread B, Thread A's donatingTo will point to thread B).
+static struct list ready_queue[64]:
+	An array of list of ready threads with index position representing the thread's priority.
+static struct semaphore priority_sema:
+	Used as a lock during the change of position of a thread in the ready queue (called in the thread_change_queue(struct thread *) method).
+
+
+>> A2: (10 marks) 
+>> Explain the data structure used to track priority donation.
+>> Give a diagram that illustrates a nested donation in your structure.
+	
+	Most of the priority donation is done in lock_acquire() so each thread only need a pointer (donatingTo) which stores the address of the thread that it is donating to. Each thread also have a base_priority int which stores the priority of the thread before any donations. When lock_acquire() is called, it compares the priority of the current thread with the lock holder's priority and donates to the lock holder and to its donee (if the current thread's priority is higher). After the current thread finishes waiting (when the lock holder releases the lock), it will restore the holder's priority as described below in the algorithms section.
+
+    The diagram below shows three thread A, B, and C (High to low priority). Thread A is waiting for L1 which B is holding and B is waiting for L2 which C is holding.
+    An example of how this will be executed (assuming there is only three threads) :
+      1) C acquires L2
+      2) B acquires L1
+      3) B tries to acquire L2
+      4) B sets donatingTo to C, lock_acquire() stores pointer to C and C's priorities 
+      5) B donates to C and waits
+      6) A tries to acquire L1
+      7) A sets donatingTo to B, lock_acquire() stores pointer to B and B's priorities
+      8) A donates to B, detect that B's donatingTo != NULL, so continue to donate to C then waits
+
+    Current status of the threads and locks:
+    
+    Thread A (Highest Priority)     Thread B (Medium Priority)     Thread C (Low Priority)
+      donatingTo = Thread B           donatingTo = Thread C          donatingTo = NULL							
+      priority = High                 priority = High                priority = High
+      base_priority = High            base_priority = Medium         base_priority = Low
+
+
+                                  Lock L1                           Lock L2
+                                   holder = Thread B                  holder = Thread C
+                                   semaphore->waiters = {Thread A}    semaphore->waiters = {Thread B}
+
+
+    Thread A's lock_acquire(Lock L1)               Thread B's lock_acquire(Lock L2)
+      holder = Thread B                              holder = Thread C
+      original = Medium (From Thread B)              original = Low (from Thread C)
+      base = Medium (From Thread B)                  base = Low (from Thread C)
+
+	The variables below lock_acquire() is what the method saves within its scope.
+
+      9) C releases L2    	
+      10) B's lock_acquire() will run and restore C's priority using original and base
+      11) B releases L1
+      12) A's lock_acquire() will run and restore B's priority using original and base
+
+
+
+---- ALGORITHMS ----
+
+>> A3: (5 marks) 
+>> How do you ensure that the highest priority thread waiting for
+>> a lock, semaphore, or condition variable wakes up first?
+
+	In sema_up(struct semaphore *), it loops through the list of waiters and finds the thread with the highest priority. It then increment the semaphore's value and if this priority is higher than the current thread's priority, thread_yield() is called so the higher priority thread will run.
+
+	A thread waiting for a lock will be stored in the list of waiters of the lock's semaphore. When the lock is available, it will call sema_up() and the highest priority thread will run as described above. 
+
+	The condition variables are inserted in order according to their priorities and when the condition is 'signaled' to wake up, cond_signal() pops the first element from the list of waiters.
+
+>> A4: (5 marks)
+>> Describe the sequence of events when a call to lock_acquire()
+>> causes a priority donation.  How is nested donation handled?
+
+  	When a thread (donor) is trying to acquire a lock (L1), lock_acquire() will first save the lock's holder into a pointer. Then if its priority is higher than the holder's priority, it will set the donor thread's donatingTo to point to the holder. The holder's priority and base_priority will be saved before changing the priority to the donor's priority. If the holder status is ready, thread_change_queue() will be called to change the position of the holder in ready_queue. However, if the holder is waiting for another lock (L2), lock_acquire() will save the holder using a pointer and get the holder of L2 by looking at the donatingTo of the L1's holder (assuming L1's holder is donating to L2's holder, or else it would be null and never enter the loop). The priority of the holder of L2 will then be changed if it is lower than the current thread. This will loop by saving the holder of L2 and going through the same process until donatingTo == NULL, which means the saved holder is not a donor. After the loop, sema_down() is called back on L1's semaphore so the current thread waits.
+
+  	When the thread wakes up, it will set its donatingTo to null and by using the saved lock's holder in the beginning, we can get the thread that released L1. We then set the holder's priority to it's base or original priority (that we saved before changing its priority) depending if the base_priority changed. The lock's holder will be set to the thread that woke up.
+
+>> A5: (5 marks)
+>> Describe the sequence of events when lock_release() is called
+>> on a lock that a higher-priority thread is waiting for.
+
+	lock_release() will set the lock's holder to null and 'up' the lock's semaphore so the highest priority thread waiting for the lock can run. It then checks if the current thread's priority is greater than its base priority and if it is, it will call thread_yield() so the donor thread will run (the donor thread has to change the priority of the current thread). The donor thread which is waiting for the lock will change the priority of the previous lock holder.
+
+---- SYNCHRONIZATION ----
+
+>> A6: (5 marks)
+>> Describe a potential race in thread_set_priority() and explain
+>> how your implementation avoids it.  Can you use a lock to avoid
+>> this race?
+
+	The new semaphore which we added to the thread struct is used when the priority changes. It is initialized to one and whenever thread_set_priority() is called, it acts as a lock. When we call highest_priority(), which returns true if the current thread is the highest priority, it could be interrupted and have another higher priority thread be added to the list. This could cause a race condition where highest_priority() returns true while another thread has a higher priority. However, our thread_set_priority() only calls thread_yield() after highest_priority() and thread_yield() will push the current thread back to its supposed position and call to schedule the highest priority thread. A lock can be used but it is not necessary in this case.
+
+---- RATIONALE ----
+
+>> A7: (5 marks)
+>> Why did you choose this design?  In what ways is it superior to
+>> another design you considered?
+
+	This design minimises the amount of memory used and prevents storing all the donors or donee threads in a long list. Only three ints, a pointer and a semaphore is added to the thread struct so it does not affect the kernel stack. Our method also does not allocate any large structures or arrays as non-static local variables so there will be no stack overflow.
+
+	Another design we considered was creating a new struct which contains a list_elem, a pointer to a lock, and a priority. The thread struct will also have a list of the new struct of which each of them represent a lock that the thread holds. The priority in the new struct will be updated to the highest priority of the thread trying to acquire the lock. So each call to lock_acquire() will go through the list of locks that the holder has and update the priority if necessary. lock_release() will remove that lock from the holder's list.
+
+	The second design that we considered use a considerably larger amount of memory to store the list and the new struct. The major difference in the two design is that the design we chose only have to store a pointer to the donee thread, whereas in the second design, each thread has to store all the new struct which basically represents all the donors.
+
+              ADVANCED SCHEDULER
+              ==================
+
+---- DATA STRUCTURES ----
+
+>> B1: (5 marks)
+>> Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+---- ALGORITHMS ----
+
+>> B2: (5 marks)
+>> Suppose threads A, B, and C have nice values 0, 1, and 2.  Each
+>> has a recent_cpu value of 0.  Fill in the table below showing the
+>> scheduling decision and the priority and recent_cpu values for each
+>> thread after each given number of timer ticks:
+
+timer  recent_cpu    priority   thread
+ticks   A   B   C   A   B   C   to run
+-----  --  --  --  --  --  --   ------
+ 0
+ 4
+ 8
+12
+16
+20
+24
+28
+32
+36
+
+>> B3: (5 marks) 
+>> Did any ambiguities in the scheduler specification make values
+>> in the table uncertain?  If so, what rule did you use to resolve
+>> them?  Does this match the behaviour of your scheduler?
+
+>> B4: (5 marks)
+>> How is the way you divided the cost of scheduling between code
+>> inside and outside interrupt context likely to affect performance?
+
+---- RATIONALE ----
+
+>> B5: (5 marks)
+>> Briefly critique your design, pointing out advantages and
+>> disadvantages in your design choices.  If you were to have extra
+>> time to work on this part of the task, how might you choose to
+>> refine or improve your design?
+
+>> B6: (5 marks)
+>> The assignment explains arithmetic for fixed-point mathematics in
+>> detail, but it leaves it open to you to implement it.  Why did you
+>> decide to implement it the way you did?  If you created an
+>> abstraction layer for fixed-point mathematics, that is, an abstract
+>> data type and/or a set of functions or macros to manipulate
+>> fixed-point numbers, why did you do so?  If not, why not?S
