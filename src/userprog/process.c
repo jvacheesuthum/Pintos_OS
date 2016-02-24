@@ -36,10 +36,11 @@ process_execute (const char *file_name)
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
 
-  /* Create a new thread to execute FILE_NAME. */
+  strlcpy (fn_copy, file_name, PGSIZE);
+ /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -54,13 +55,65 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  //------New Implementation-------//
+  char *token, *save_ptr;
+  int argc, i;
+  int *offsets;
+  size_t file_name_len;
+  void *start;
+  //-------------------------------//
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+ 
+  //--------New Implementation---------//
+ 
+  argc = 0;
+  file_name_len = strlen (file_name);
+  offsets = (int *) malloc (file_name_len * sizeof(int));
+  offsets[0] = 0;
+  for (token = strtok_r (file_name, " ", &save_ptr);
+       token != NULL;
+       token = strtok_r (NULL, " ", &save_ptr)) {
+    while (*save_ptr == ' ') save_ptr++;
+    argc++;
+    offsets[argc] = save_ptr - file_name; 
+  }
+
+  //-----------------------------------//
+
   success = load (file_name, &if_.eip, &if_.esp);
 
+  if (success) {
+    if_.esp -= file_name_len + 1;
+    start = if_.esp;
+    memcpy (if_.esp, file_name, file_name_len + 1);
+    //round down to a multiple of 4
+    if_.esp -= 4 - ((file_name_len + 1) % 4);
+	//0 for arg_list[argc] and word-align
+    *(int *) if_.esp = 0;
+    if_.esp -= 4;
+    *(int *) if_.esp = 0;
+	//push elem right to left
+    for (i = argc - 1; i >= 0; i--) {
+      if_.esp -= 4;
+      *(char **) if_.esp = start + offsets[i];
+    }
+	//argv points to arg_list[0]
+    if_.esp -= 4;
+    *(char **) if_.esp = if_.esp + 4;
+	//pushing argc
+    if_.esp -= 4;
+    *(int *)if_.esp = argc;
+	//fake return addr
+    if_.esp -= 4;
+    *(int *)if_.esp = 0;
+  } 
+
+  free (offsets);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
@@ -69,7 +122,7 @@ start_process (void *file_name_)
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
-     arguments on the stack in the form of a `struct intr_frame',
+	 arguments on the stack in the form of a `struct intr_frame',
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
@@ -437,7 +490,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE;
+        *esp = PHYS_BASE -12;
       else
         palloc_free_page (kpage);
     }
