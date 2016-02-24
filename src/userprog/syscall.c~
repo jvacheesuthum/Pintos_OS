@@ -48,7 +48,7 @@ syscall_handler (struct intr_frame *f)
   
   int
   write (int fd, const void *buffer, unsigned size) {
-    return 0;
+    return -1;
   }
   
   
