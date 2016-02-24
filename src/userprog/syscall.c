@@ -39,4 +39,10 @@ syscall_handler (struct intr_frame *f)
       printf("syscall!");
       thread_exit ();
   }
+
+  //------- write your methods here --------//
+  int
+  exit(){
+    return -1;
+  }
 }
