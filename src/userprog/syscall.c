@@ -48,11 +48,10 @@ syscall_handler (struct intr_frame *f)
       printf("after exit in switch");
       break;
     case SYS_WRITE:
-      write(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
+     write(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
       break;
     /*case SYS_HALT:
       halt();
-      break;
       break;
     case SYS_EXEC:
       break;
