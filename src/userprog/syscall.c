@@ -103,7 +103,9 @@ exit (int status){
 
 int 
 wait (pid_t pid){
-  return -999;
+  /* All of a process’s resources, including its struct thread, must be freed whether its parent ever waits for it or not, and regardless of whether the child exits before or after its parent.?? FROM SPEC PG 31 */
+  
+  return process_wait((tid_t) pid);
 }
   
 //putbuf() in specs. lib/kernel/console.c via stdio.h***
