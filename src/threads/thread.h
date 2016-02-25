@@ -106,6 +106,8 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    struct thread *pid_parent;
+    // and for childrens, some data structure to record the pointer to the children threads(process) and also record the exit status? 
 #endif
 
     /* Owned by thread.c. */
