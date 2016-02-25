@@ -4,7 +4,24 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+#include "devices/shutdown.h"
+#include "userprog/process.h"
+
 static void syscall_handler (struct intr_frame *);
+
+static void halt (void);
+static void exit (int status);
+static pid_t exec(const char *cmd_line);
+static int wait (pid_t pid);
+static bool create (const char *file, unsigned initial_size);
+static bool remove (const char *file);
+static int open (const char *file);
+static int filesize (int fd);
+static int read (int fd, void *buffer, unsigned size);
+static int write (int fd, const void *buffer, unsigned size);
+static void seek (int fd, unsigned position);
+static unsigned tell (int fd);
+static void close (int fd);
 
 void
 syscall_init (void) 
@@ -37,6 +54,31 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_WRITE:
       write(args[0], args[1], args[2]);
+    case SYS_HALT:
+      halt();
+      break;
+      break;
+    case SYS_EXEC:
+      break;
+    case SYS_WAIT:
+      break;
+    case SYS_CREATE:
+      break;
+    case SYS_REMOVE:
+      break;
+    case SYS_OPEN:
+      break;
+    case SYS_FILESIZE:
+      break;
+    case SYS_READ:
+      break;
+    //case SYS_WRITE:
+     // break;
+    case SYS_SEEK:
+      break;
+    case SYS_TELL:
+      break;
+    case SYS_CLOSE:
       break;
     case default: // original code
       printf("syscall!");
@@ -45,10 +87,27 @@ syscall_handler (struct intr_frame *f)
 
   //------- write your methods here --------//
   void
+  halt(void){
+    shutdown_power_off();
+  }
+
+  pid_t exec(const char *cmd_line){
+    //TODO: add synchronization
+    tid_t pid = process_execute(cmd_line); 
+    //taking pid as tid, both are ints
+    return (pid_t) pid;  
+  }
+
+  void
   exit (int status){
     thread_exit();    //in thread.c which calls process_exit() in process.c
     //send status to kernel ?????????? HOWWWWWWWWWWWWWWWWWWWWW
     return;
+  }
+
+  int 
+  wait (pid_t pid){
+    return -999;
   }
   
 //putbuf() in specs. lib/kernel/console.c via stdio.h***
@@ -78,7 +137,7 @@ syscall_handler (struct intr_frame *f)
 	break;
     }
   }
-  
+
   
   
   
