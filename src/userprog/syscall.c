@@ -136,6 +136,13 @@ syscall_handler (struct intr_frame *f)
 	//return file_write( 'convert fd to file* here', buffer, size);  //in file.c
 	break;
     }
+    
+    int
+    open (const char *file) {
+      file* opening = filesys_open(file);
+      file -> inode -> open_cnt ++;  //not sure if this is already implemented - cant se one
+      //map the opening file to an available fd (not 0 or 1) and returns fd
+    }
   }
 
   
