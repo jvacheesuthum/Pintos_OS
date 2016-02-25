@@ -81,6 +81,15 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
+
+#ifdef USERPROG
+struct child_process{
+  tid_t tid;
+  int exit_status;
+  struct list_elem child_process_elem;
+}
+#endif
+
 struct thread
   {
     /* Owned by thread.c. */
@@ -106,13 +115,14 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-    struct thread *pid_parent;
-    // and for childrens, some data structure to record the pointer to the children threads(process) and also record the exit status? 
+    struct thread *parent_process;      // for the process thread in user program to refer back to its parent //
+    struct list children_process;       // list of children processes it spawns//
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
