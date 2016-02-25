@@ -108,6 +108,7 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
     struct thread *pid_parent;
     // and for childrens, some data structure to record the pointer to the children threads(process) and also record the exit status? 
+    bool waiting;
 #endif
 
     /* Owned by thread.c. */
@@ -158,4 +159,5 @@ void update_recent_cpu_of (struct thread* t, void* aux);
 void update_priority_of (struct thread* t, void* aux);
 void update_load_avg (void);
 bool highest_priority (void);
+struct thread *get_thread(tid_t);
 #endif /* threads/thread.h */

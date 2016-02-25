@@ -116,9 +116,6 @@ write (int fd, const void *buffer, unsigned size) {
   unsigned wsize = size;
   unsigned maxbufout;
   switch(fd){
-    case 0 :
-      printf ("HERE\n");
-      break;
     case 1 : 			//write to sys console
 	maxbufout = 300;
 	if (size > maxbufout) { 	//break up large buffer (>300 bytes for now)

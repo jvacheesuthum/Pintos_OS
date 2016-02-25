@@ -221,6 +221,11 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  //----------Task 2 ------------//
+  t->waiting = false;
+  t->pid_parent = thread_current();
+  //-----------------------------//
+
   intr_set_level (old_level);
 
   /* Add to run queue. */
@@ -754,7 +759,20 @@ allocate_tid (void)
 
   return tid;
 }
-
+
+struct thread *
+get_thread (tid_t tid)
+{
+  struct list_elem *e;
+  for (e = list_begin(&all_list); 
+       e != list_end(&all_list); 
+       e = list_next(e)) {
+    struct thread *t = list_entry(e, struct thread, elem);
+    if (t->tid == tid) return t;
+  }
+  return NULL;
+}
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
