@@ -115,8 +115,12 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    struct thread *pid_parent;
+    // and for childrens, some data structure to record the pointer to the children threads(process) and also record the exit status? 
+    bool waited;
     struct thread *parent_process;      // for the process thread in user program to refer back to its parent //
     struct list children_process;       // list of children processes it spawns//
+    struct semaphore wait_sema;
 #endif
 
     /* Owned by thread.c. */
@@ -168,4 +172,5 @@ void update_recent_cpu_of (struct thread* t, void* aux);
 void update_priority_of (struct thread* t, void* aux);
 void update_load_avg (void);
 bool highest_priority (void);
+struct thread *get_thread(tid_t);
 #endif /* threads/thread.h */
