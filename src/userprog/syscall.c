@@ -48,11 +48,10 @@ syscall_handler (struct intr_frame *f)
       printf("after exit in switch");
       break;
     case SYS_WRITE:
-      write(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
+     write(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
       break;
     /*case SYS_HALT:
       halt();
-      break;
       break;
     case SYS_EXEC:
       break;
@@ -133,8 +132,15 @@ write (int fd, const void *buffer, unsigned size) {
       default :
 	//return file_write( 'convert fd to file* here', buffer, size);  //in file.c
 	break;
-   }
-}
+    }
+    
+    /*int
+    open (const char *file) {
+      file* opening = filesys_open(file);
+      file -> inode -> open_cnt ++;  //not sure if this is already implemented - cant se one
+      //map the opening file to an available fd (not 0 or 1) and returns fd
+    }*/
+  }
 
   
   

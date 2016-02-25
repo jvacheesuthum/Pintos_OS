@@ -221,10 +221,14 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+#ifdef USERPROG
   //----------Task 2 ------------//
-  t->waiting = false;
+  t->waited = false;
+  sema_init(&t->wait_sema);
   t->pid_parent = thread_current();
+  list_init(t->child_process);
   //-----------------------------//
+#endif
 
   intr_set_level (old_level);
 

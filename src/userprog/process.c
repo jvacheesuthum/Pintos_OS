@@ -42,6 +42,12 @@ process_execute (const char *file_name)
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+
+  // ---- //
+  struct child_process cp;
+  &(cp) -> tid = tid;  
+  list_push_back(&(thread_current() -> child_process), &(cp.child_process_elem));
+  // ---- //
   return tid;
 }
 
@@ -93,12 +99,14 @@ process_wait (tid_t child_tid UNUSED)
   if (t == NULL ||
       t->status == THREAD_DYING || 
       t->pid_parent  != thread_current() || 
-      t->waiting) {
+      t->waited) {
     return -1;
   }
 
-  sema_down(&t->waiters);  
- 
+  sema_down(&t->wait_sema);  
+  t->waited = true;
+
+  return 99; //<--need exit status 
 }
 
 /* Free the current process's resources. */
@@ -109,7 +117,9 @@ process_exit (void)
   uint32_t *pd;
 
   //----------Task 2-------------//
-//  if (sema_up(cur->waiters);
+  if (!list_empty(&cur->wait_sema.waiters)) {
+    sema_up(cur->wait_sema);
+  }
   //-----------------------------//
 
   /* Destroy the current process's page directory and switch back
