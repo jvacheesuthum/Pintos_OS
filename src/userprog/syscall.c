@@ -54,9 +54,9 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_WRITE:
       write(args[0], args[1], args[2]);
+      break;
     case SYS_HALT:
       halt();
-      break;
       break;
     case SYS_EXEC:
       break;
