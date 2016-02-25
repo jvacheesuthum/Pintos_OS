@@ -49,11 +49,14 @@ syscall_handler (struct intr_frame *f)
   }
 
   switch(syscall_name){
+    case SYS_EXIT:
+      exit(args[0]);   //think this is the right arg for exit -> return afterwards?
+      break;
+    case SYS_WRITE:
+      write(args[0], args[1], args[2]);
     case SYS_HALT:
       halt();
       break;
-    case SYS_EXIT:
-      exit();
       break;
     case SYS_EXEC:
       break;
@@ -69,8 +72,8 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_READ:
       break;
-    case SYS_WRITE:
-      break;
+    //case SYS_WRITE:
+     // break;
     case SYS_SEEK:
       break;
     case SYS_TELL:
@@ -97,6 +100,8 @@ syscall_handler (struct intr_frame *f)
 
   void
   exit (int status){
+    thread_exit();    //in thread.c which calls process_exit() in process.c
+    //send status to kernel ?????????? HOWWWWWWWWWWWWWWWWWWWWW
     return;
   }
 
@@ -105,9 +110,32 @@ syscall_handler (struct intr_frame *f)
     return -999;
   }
   
+//putbuf() in specs. lib/kernel/console.c via stdio.h***
   int
   write (int fd, const void *buffer, unsigned size) {
-    return 0;
+    //maybe check if buffer pointer is valid here
+    char* data;
+    data = buffer;
+    unsigned wsize = size;
+    switch(fd){
+      case 1 : 			//write to sys console
+	const int maxbufout = 300;
+	if (size > maxbufout) { 	//break up large buffer (>300 bytes for now)
+	  unsigned wsize = size;
+	  char* temp;
+	  while (wsize > maxbufout) {
+	    strlcpy(temp, data, maxbufout);
+	    putbuf(temp, maxbufout);		       
+	    data += maxbufout;       //cuts the first 300 char off data
+	    wsize -= maxbufout;
+	  }
+	}	
+	putbuf(buffer, wsize);      //if goes to if clause above this prints last section of buffer which is < maxbufout
+	return size;
+      case default :
+	//return file_write( 'convert fd to file* here', buffer, size);  //in file.c
+	break;
+    }
   }
 
   
