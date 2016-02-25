@@ -183,6 +183,7 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
+//  printf("T");
   enum intr_level old_level;
   ticks++;
   thread_tick ();

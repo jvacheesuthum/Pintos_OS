@@ -39,22 +39,18 @@ syscall_handler (struct intr_frame *f)
 
   // refer to page37 specs // or use esp as int* sys_name as seen in lib/user/syscall.c
   void *esp   = f->esp;
-  int argc    = *(*esp + 4); //check if +4 is correct? the address for argc is at address esp + 4 
-  char** argv = *(*esp + 4*2);
-  char* syscall_name = *argv; 
-  char* args[argc];
-  int i;
-  for(i=0; i<argc; i++){
-    args[i] = *(argv + (i+1)*4);
-  }
+  int syscall_name = *(int *)esp; 
 
   switch(syscall_name){
     case SYS_EXIT:
-      exit(args[0]);   //think this is the right arg for exit -> return afterwards?
+      printf("before exit in switch");
+      exit(*(int *)(esp + 4));   //think this is the right arg for exit -> return afterwards?
+      printf("after exit in switch");
       break;
     case SYS_WRITE:
-      write(args[0], args[1], args[2]);
-    case SYS_HALT:
+      write(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
+      break;
+    /*case SYS_HALT:
       halt();
       break;
       break;
@@ -80,46 +76,51 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_CLOSE:
       break;
-    case default: // original code
-      printf("syscall!");
-      thread_exit ();
+*/
+    default: // original code*/
+      printf("syscall!: %i\n", syscall_name);
+     // thread_exit ();
   }
-
+}
   //------- write your methods here --------//
-  void
-  halt(void){
-    shutdown_power_off();
-  }
+void
+halt(void){
+  shutdown_power_off();
+}
 
-  pid_t exec(const char *cmd_line){
-    //TODO: add synchronization
-    tid_t pid = process_execute(cmd_line); 
-    //taking pid as tid, both are ints
-    return (pid_t) pid;  
-  }
+pid_t exec(const char *cmd_line){
+  //TODO: add synchronization
+  tid_t pid = process_execute(cmd_line); 
+  //taking pid as tid, both are ints
+  return (pid_t) pid;  
+}
 
-  void
-  exit (int status){
-    thread_exit();    //in thread.c which calls process_exit() in process.c
+void
+exit (int status){
+  thread_exit();    //in thread.c which calls process_exit() in process.c
     //send status to kernel ?????????? HOWWWWWWWWWWWWWWWWWWWWW
-    return;
-  }
+  return;
+}
 
-  int 
-  wait (pid_t pid){
-    return -999;
-  }
+int 
+wait (pid_t pid){
+  return -999;
+}
   
 //putbuf() in specs. lib/kernel/console.c via stdio.h***
-  int
-  write (int fd, const void *buffer, unsigned size) {
-    //maybe check if buffer pointer is valid here
-    char* data;
-    data = buffer;
-    unsigned wsize = size;
-    switch(fd){
-      case 1 : 			//write to sys console
-	const int maxbufout = 300;
+int
+write (int fd, const void *buffer, unsigned size) {
+  //maybe check if buffer pointer is valid here
+  char* data;
+  data =  buffer;
+  unsigned wsize = size;
+  unsigned maxbufout;
+  switch(fd){
+    case 0 :
+      printf ("HERE\n");
+      break;
+    case 1 : 			//write to sys console
+	maxbufout = 300;
 	if (size > maxbufout) { 	//break up large buffer (>300 bytes for now)
 	  unsigned wsize = size;
 	  char* temp;
@@ -132,15 +133,27 @@ syscall_handler (struct intr_frame *f)
 	}	
 	putbuf(buffer, wsize);      //if goes to if clause above this prints last section of buffer which is < maxbufout
 	return size;
-      case default :
+      default :
 	//return file_write( 'convert fd to file* here', buffer, size);  //in file.c
 	break;
+<<<<<<< HEAD
+    }
+    
+    int
+    open (const char *file) {
+      file* opening = filesys_open(file);
+      file -> inode -> open_cnt ++;  //not sure if this is already implemented - cant se one
+      //map the opening file to an available fd (not 0 or 1) and returns fd
     }
   }
+=======
+   }
+}
+>>>>>>> 3ea2144154f18fde6927874f15a7cbf4c5d1f0de
 
   
   
   
   
   
-}
+
