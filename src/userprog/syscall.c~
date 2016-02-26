@@ -132,10 +132,11 @@ write (int fd, const void *buffer, unsigned size) {
 	putbuf(buffer, wsize);      
 	return size;
     default :
-	struct file_map* target = //get filemap with matching fd -> use map -> files list?
+	struct file_map* target = get_file_map(fd);
 	return file_write(target-> filename, buffer, size);  //defined in file.c
 	break;
     }
+  }
     
     //NEEDS LOCK where a file is involve ?
     int

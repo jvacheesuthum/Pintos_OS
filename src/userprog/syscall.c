@@ -136,28 +136,32 @@ write (int fd, const void *buffer, unsigned size) {
 	return file_write(target-> filename, buffer, size);  //defined in file.c
 	break;
     }
+  }
     
     //NEEDS LOCK where a file is involve ?
-    int
-    open (const char *file) {
-      if (file == NULL) return -1;
-      struct file* opening = filesys_open(file); 
-      if (opening == NULL) return -1;
+int
+open (const char *file) {
+  if (file == NULL) return -1;
+  struct file* opening = filesys_open(file); 
+  if (opening == NULL) return -1;
       
-      //map the opening file to an available fd (not 0 or 1) and returns fd
-      struct file_map* newmap;
-      int newfile_id = thread_current() -> next_fd;
-      assert(newfile_id > 1);
-      thread_current() -> next_fd ++;    //increment next available descriptor
-      newmap -> filename = opening;
-      newmap -> file_id = newfile_id;
-      list_push_back(thread_current()-> files, newmap-> elem); //put this fd-file map into list in struct thread
-      return newfile_id;
-    }
+  //map the opening file to an available fd (not 0 or 1) and returns fd
+  struct file_map* newmap;
+  int newfile_id = thread_current() -> next_fd;
+  assert(newfile_id > 1);
+  thread_current() -> next_fd ++;    //increment next available descriptor
+  newmap -> filename = opening;
+  newmap -> file_id = newfile_id;
+  list_push_back(thread_current()-> files, newmap-> elem); //put this fd-file map into list in struct thread
+  return newfile_id;
+}
     
     
     
-    
+void
+close (int fd) {
+  struct file_map
+}
     
     //----------utility fuctions---------------//
     
@@ -169,7 +173,7 @@ write (int fd, const void *buffer, unsigned size) {
       for (e = list_begin(&files); e != list_end (&files); e = list_next (e)) {
         struct file_map *map = list_entry (e, struct file_map, elem);
         if (map->fid == fid){
-          return f;
+          return map;
         } 
       }
       return NULL;
