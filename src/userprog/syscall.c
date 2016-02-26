@@ -7,6 +7,7 @@
 #include "devices/shutdown.h"
 #include "userprog/process.h"
 #include "filesys/filesys.h"
+#include "devices/input.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -123,7 +124,8 @@ wait (pid_t pid){
 bool 
 create (const char *file, unsigned initial_size)
 {
-  return filesys_create(file, initial_size;
+  if (file == NULL || initial_size == NULL) return -1;
+  return filesys_create(file, initial_size);
 }
 
 int
