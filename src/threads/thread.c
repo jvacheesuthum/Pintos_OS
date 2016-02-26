@@ -223,6 +223,8 @@ thread_create (const char *name, int priority,
 
 #ifdef USERPROG
   list_init(t->child_process);
+  list_init(t->files);
+  t -> next_fd = 2;           //0 and 1 are reserved - this will be incremented in open syscall
 #endif
 
   intr_set_level (old_level);

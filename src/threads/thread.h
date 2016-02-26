@@ -117,6 +117,8 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
     struct thread *parent_process;      // for the process thread in user program to refer back to its parent //
     struct list children_process;       // list of children processes it spawns//
+    struct list files;                   //list of open files in user program
+    int next_fd;                        //next available fd for opening files in user program
 #endif
 
     /* Owned by thread.c. */
