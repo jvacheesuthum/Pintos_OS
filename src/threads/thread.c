@@ -224,9 +224,16 @@ thread_create (const char *name, int priority,
 #ifdef USERPROG
   //----------Task 2 ------------//
   t->waited = false;
-  sema_init(&t->wait_sema);
+  sema_init(&t->wait_sema, 0);
   t->pid_parent = thread_current();
   list_init(t->child_process);
+  // --moved from process.c-- //
+  struct child_process cp;
+  child_process_init(&cp)
+  &(cp) -> child = t;
+  &(cp) -> tid = tid;  
+  list_push_back(&(thread_current() -> child_process), &(cp.elem));
+  // ---- //
   //-----------------------------//
 #endif
 
@@ -243,6 +250,12 @@ thread_create (const char *name, int priority,
 
   return tid;
 }
+
+#ifdef USERPROG
+void child_process_init(struct child_process* cp){
+  cp -> exit_status = NULL; 
+}
+#endif
 
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
