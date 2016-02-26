@@ -106,14 +106,20 @@ wait (pid_t pid){
   return -999;
 }
   
-//putbuf() in specs. lib/kernel/console.c via stdio.h***
+int
+filesize(int fd) {
+  struct file_map* map = get_file_map(fd);
+  return file_length(map-> filename);
+}
+
+
 int
 write (int fd, const void *buffer, unsigned size) {
   //maybe check if buffer pointer is valid here
-  char* data;
-  data =  buffer;
+  //char* data;
+  //data =  buffer;
   unsigned wsize = size;
-  unsigned maxbufout;
+  //unsigned maxbufout;
   switch(fd){
     case 0 :
     	return -1;              //fd 0 is standard in, cannot be written
@@ -156,11 +162,19 @@ open (const char *file) {
   return newfile_id;
 }
     
-    
+
+
+unsigned
+tell (int fd) {
+  struct file_map* map = get_file_map(fd);
+  return file_tell(map-> filename);
+}    
     
 void
 close (int fd) {
-  struct file_map
+  struct file_map* map = get_file_map(fd);
+  list_remove(map-> elem);
+  file_close(map-> filename);
 }
     
     //----------utility fuctions---------------//
