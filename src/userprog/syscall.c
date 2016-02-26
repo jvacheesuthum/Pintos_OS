@@ -127,8 +127,10 @@ write (int fd, const void *buffer, unsigned size) {
   unsigned wsize = size;
   unsigned maxbufout;
   switch(fd){
+    case 0 :
+    	return -1;              //fd 0 is standard in, cannot be written
     case 1 : 			//write to sys console
-	maxbufout = 300;
+	/*maxbufout = 300;
 	if (size > maxbufout) { 	//break up large buffer (>300 bytes for now)
 	  unsigned wsize = size;
 	  char* temp;
@@ -138,20 +140,56 @@ write (int fd, const void *buffer, unsigned size) {
 	    data += maxbufout;       //cuts the first 300 char off data
 	    wsize -= maxbufout;
 	  }
-	}	
-	putbuf(buffer, wsize);      //if goes to if clause above this prints last section of buffer which is < maxbufout
+	}	*/
+	putbuf(buffer, wsize);      
 	return size;
-      default :
-	//return file_write( 'convert fd to file* here', buffer, size);  //in file.c
+    default :
+	struct file_map* target = get_file_map(fd);
+	return file_write(target-> filename, buffer, size);  //defined in file.c
 	break;
     }
+  }
     
-    /*int
-    open (const char *file) {
-      file* opening = filesys_open(file);
-      file -> inode -> open_cnt ++;  //not sure if this is already implemented - cant se one
-      //map the opening file to an available fd (not 0 or 1) and returns fd
-    }*/
+    //NEEDS LOCK where a file is involve ?
+int
+open (const char *file) {
+  if (file == NULL) return -1;
+  struct file* opening = filesys_open(file); 
+  if (opening == NULL) return -1;
+      
+  //map the opening file to an available fd (not 0 or 1) and returns fd
+  struct file_map* newmap;
+  int newfile_id = thread_current() -> next_fd;
+  assert(newfile_id > 1);
+  thread_current() -> next_fd ++;    //increment next available descriptor
+  newmap -> filename = opening;
+  newmap -> file_id = newfile_id;
+  list_push_back(thread_current()-> files, newmap-> elem); //put this fd-file map into list in struct thread
+  return newfile_id;
+}
+    
+    
+    
+void
+close (int fd) {
+  struct file_map
+}
+    
+    //----------utility fuctions---------------//
+    
+    //takes file descriptor and returns pointer to the file map that corresponds to it
+    struct file_map*
+    get_file_map(int fd) { 
+      struct list files = thread_current()-> files;
+      struct list_elem e*;
+      for (e = list_begin(&files); e != list_end (&files); e = list_next (e)) {
+        struct file_map *map = list_entry (e, struct file_map, elem);
+        if (map->fid == fid){
+          return map;
+        } 
+      }
+      return NULL;
+    }
   }
 
   
