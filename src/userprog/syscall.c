@@ -6,6 +6,7 @@
 #include "filesys/file.h"
 #include "devices/shutdown.h"
 #include "userprog/process.h"
+#include "filesys/filesys.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -119,12 +120,44 @@ wait (pid_t pid){
   return process_wait((tid_t) pid);
 }
   
+bool 
+create (const char *file, unsigned initial_size)
+{
+  return filesys_create(file, initial_size;
+}
+
 int
 filesize(int fd) {
   struct file_map* map = get_file_map(fd);
   return file_length(map-> filename);
 }
 
+int 
+read (int fd, void *buffer, unsigned size)
+{
+  unsigned count = 0;
+  struct file_map *file_map;
+  switch(fd) {
+    case 0:
+      while (count != size) {
+        *(uint8_t *)(buffer + count) = input_getc();
+        count++;
+      }
+      if (count == size) {
+        return size;
+      } else {
+        return count;
+      }
+    case 1:
+      return -1;
+    default:
+      file_map = get_file_map(fd);
+      if (file_map == NULL) {
+        return -1;
+      }
+      return file_read (file_map->filename, buffer, size);
+  }
+}
 
 int
 write (int fd, const void *buffer, unsigned size) {
@@ -133,6 +166,7 @@ write (int fd, const void *buffer, unsigned size) {
   //data =  buffer;
   unsigned wsize = size;
   //unsigned maxbufout;
+  struct file_map* target;
   switch(fd){
     case 0 :
     	return -1;              //fd 0 is standard in, cannot be written
@@ -151,7 +185,7 @@ write (int fd, const void *buffer, unsigned size) {
 	putbuf(buffer, wsize);      
 	return size;
     default :
-	struct file_map* target = get_file_map(fd);
+	target = get_file_map(fd);
 	return file_write(target-> filename, buffer, size);  //defined in file.c
 	break;
     }
@@ -168,7 +202,7 @@ open (const char *file) {
   //map the opening file to an available fd (not 0 or 1) and returns fd
   struct file_map* newmap;
   int newfile_id = thread_current() -> next_fd;
-  assert(newfile_id > 1);
+//  assert(newfile_id > 1); <-- implicit declar of assert
   thread_current() -> next_fd ++;    //increment next available descriptor
   newmap -> filename = opening;
   newmap -> file_id = newfile_id;
@@ -187,25 +221,25 @@ tell (int fd) {
 void
 close (int fd) {
   struct file_map* map = get_file_map(fd);
-  list_remove(map-> elem);
+  list_remove(&map-> elem);
   file_close(map-> filename);
 }
     
-    //----------utility fuctions---------------//
-    
-    //takes file descriptor and returns pointer to the file map that corresponds to it
-    struct file_map*
-    get_file_map(int fd) { 
-      struct list files = thread_current()-> files;
-      struct list_elem *e;
-      for (e = list_begin(&files); e != list_end (&files); e = list_next (e)) {
-        struct file_map *map = list_entry (e, struct file_map, elem);
-        if (map->file_id == fd){
-          return map;
-        } 
-      }
-      return NULL;
-    }
+//----------utility fuctions---------------//
+  
+//takes file descriptor and returns pointer to the file map that corresponds to it
+struct file_map*
+get_file_map(int fd) { 
+  struct list files = thread_current()-> files;
+  struct list_elem *e;
+  for (e = list_begin(&files); e != list_end (&files); e = list_next (e)) {
+    struct file_map *map = list_entry (e, struct file_map, elem);
+    if (map->file_id == fd){
+      return map;
+    } 
+  }
+  return NULL;
+}
  
 
   
