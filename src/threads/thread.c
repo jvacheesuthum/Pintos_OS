@@ -225,14 +225,16 @@ thread_create (const char *name, int priority,
   //----------Task 2 ------------//
   t->waited = false;
   sema_init(&t->wait_sema, 0);
-  t->pid_parent = thread_current();
+  t->parent_process = thread_current();
   list_init(&t->children_process);
   // --moved from process.c-- //
   struct child_process cp;
   child_process_init(&cp);
   cp.child = t;
   cp.tid = tid;  
-  list_push_back(&(thread_current() -> children_process), &(cp.elem));
+  if(thread_current()->parent_process != NULL){
+    list_push_back(&(thread_current() -> children_process), &(cp.elem));
+  }
   // ---- //
   list_init(&t->files);
   t -> next_fd = 2;           //0 and 1 are reserved - this will be incremented in open syscall
