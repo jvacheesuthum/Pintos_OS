@@ -43,11 +43,6 @@ process_execute (const char *file_name)
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
 
-  // ---- //
-  struct child_process cp;
-  &(cp) -> tid = tid;  
-  list_push_back(&(thread_current() -> child_process), &(cp.child_process_elem));
-  // ---- //
   return tid;
 }
 
@@ -92,21 +87,40 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-//  while(1){}
-  struct thread *t = get_thread(child_tid);
-  if (t == NULL ||
-      t->status == THREAD_DYING || 
-      t->pid_parent  != thread_current() || 
-      t->waited) {
+  struct thread *child;
+  int tid_exit_status;
+  struct list children = thread_current() -> children_process;
+
+  struct list_elem* e;
+  struct child_process *cp;
+  e = list_begin (&children);
+  while (e != list_end (&children)) {
+    cp = list_entry (e, struct child_process, elem);
+    if(cp->tid == child_tid){
+      child = cp -> child;
+      tid_exit_status = cp -> exit_status;
+      break;
+    }
+    e = list_next(e);
+  }
+  if(e == list_end(&children) || child-> waited){
+    // 1. invalid tid, child doesn't exist
+    // 2. wait already called on this child
     return -1;
   }
 
-  sema_down(&t->wait_sema);  
-  t->waited = true;
-
-  return 99; //<--need exit status 
+  else if(tid_exit_status == NULL){
+    // actual waiting happens here //
+    child->waited = true;
+    sema_down(&child->wait_sema);  
+    tid_exit_status = cp -> exit_status;
+    return tid_exit_status;
+  }
+  else{
+    return tid_exit_status;
+  }
 }
 
 /* Free the current process's resources. */

@@ -96,14 +96,26 @@ pid_t exec(const char *cmd_line){
 
 void
 exit (int status){
+  struct list exit_statuses = (thread_current() -> parent_process) -> children_process;  
+  struct list_elem* e;
+  e = list_begin (&exit_statuses);
+  while (e != list_end (&exit_statuses)) {
+    struct child_process *cp = list_entry (e, struct child_process, elem);
+    if(cp->tid == thread_current()->tid){
+      cp -> exit_status = status;
+      break;
+    }
+    e = list_next(e);
+  }
   thread_exit();    //in thread.c which calls process_exit() in process.c
-    //send status to kernel ?????????? HOWWWWWWWWWWWWWWWWWWWWW
-  return;
 }
 
 int 
 wait (pid_t pid){
-  return -999;
+  /* All of a process’s resources, including its struct thread, must be freed whether its parent ever waits for it or not, and regardless of whether the child exits before or after its parent.?? FROM SPEC PG 31 */
+  //cleaning up happens in process_exit() but can't find where struct thread is cleaned up ????
+  
+  return process_wait((tid_t) pid);
 }
   
 int

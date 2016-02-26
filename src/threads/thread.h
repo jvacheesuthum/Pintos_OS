@@ -86,7 +86,8 @@ typedef int tid_t;
 struct child_process{
   tid_t tid;
   int exit_status;
-  struct list_elem child_process_elem;
+  struct list_elem elem;
+  struct thread *child; 
 }
 #endif
 
@@ -119,7 +120,8 @@ struct thread
     // and for childrens, some data structure to record the pointer to the children threads(process) and also record the exit status? 
     bool waited;
     struct thread *parent_process;      // for the process thread in user program to refer back to its parent //
-    struct list children_process;       // list of children processes it spawns//
+
+    struct list children_process;       // list of data of children processes it spawns//
     struct list files;                   //list of open files in user program
     int next_fd;                        //next available fd for opening files in user program
     struct semaphore wait_sema;
@@ -129,6 +131,9 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
+#ifdef USERPROG
+void child_process_init(struct child_process*); 
+#endif
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

@@ -81,6 +81,21 @@ kill (struct intr_frame *f)
      
   /* The interrupt frame's code segment value tells us where the
      exception originated. */
+
+  //-- task 2: need to pass -1 as exit status of this process to its parent process --//
+  struct list exit_statuses = (thread_current() -> parent_process) -> children_process;  
+  struct list_elem* e;
+  e = list_begin (&exit_statuses);
+  while (e != list_end (&exit_statuses)) {
+    struct child_process *cp = list_entry (e, struct child_process, elem);
+    if(cp->tid == thread_current()->tid){
+      cp -> exit_status = -1;
+      break;
+    }
+    e = list_next(e);
+  }
+  // ----------//
+
   switch (f->cs)
     {
     case SEL_UCSEG:
@@ -88,10 +103,7 @@ kill (struct intr_frame *f)
          expected.  Kill the user process.  */
       printf ("%s: dying due to interrupt %#04x (%s).\n",
               thread_name (), f->vec_no, intr_name (f->vec_no));
-      //-----TEST IMPLEMENTATION-----------//
-      thread_current()->status = THREAD_DYING;
-      //-----------------------------------//
-    
+
       intr_dump_frame (f);
       thread_exit (); 
 
@@ -100,18 +112,13 @@ kill (struct intr_frame *f)
          Kernel code shouldn't throw exceptions.  (Page faults
          may cause kernel exceptions--but they shouldn't arrive
          here.)  Panic the kernel to make the point.  */
-      //-----TEST IMPLEMENTATION-----------//
-      thread_current()->status = THREAD_DYING;
-      //-----------------------------------//
+      
       intr_dump_frame (f);
       PANIC ("Kernel bug - unexpected interrupt in kernel"); 
 
     default:
       /* Some other code segment?  Shouldn't happen.  Panic the
          kernel. */
-      //-----TEST IMPLEMENTATION-----------//
-      thread_current()->status = THREAD_DYING;
-      //-----------------------------------//
       printf ("Interrupt %#04x (%s) in unknown segment %04x\n",
              f->vec_no, intr_name (f->vec_no), f->cs);
       thread_exit ();
