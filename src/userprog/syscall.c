@@ -95,8 +95,9 @@ halt(void){
 
 static pid_t
 exec(const char *cmd_line){
-  //TODO: add synchronization
-  tid_t pid = process_execute(cmd_line); 
+  //TODO: synchronization
+  tid_t pid = process_execute(cmd_line);
+  //TODO: call open -> pass file pointer to thread -> deny writes in thread 
   //taking pid as tid, both are ints
   return (pid_t) pid;  
 }

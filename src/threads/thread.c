@@ -235,9 +235,9 @@ thread_create (const char *name, int priority,
   if(thread_current()->parent_process != NULL){
     list_push_back(&(thread_current() -> children_process), &(cp.elem));
   }
-  // ---- //
+  // -- file handling -- //
   list_init(&t->files);
-  t -> next_fd = 2;           //0 and 1 are reserved - this will be incremented in open syscall
+  t -> next_fd = 2;           
   //-----------------------------//
 #endif
 
