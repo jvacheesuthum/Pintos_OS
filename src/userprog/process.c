@@ -132,7 +132,7 @@ process_exit (void)
 
   //----------Task 2-------------//
   if (!list_empty(&cur->wait_sema.waiters)) {
-    sema_up(cur->wait_sema);
+    sema_up(&cur->wait_sema);
   }
   //-----------------------------//
 

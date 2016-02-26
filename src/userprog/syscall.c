@@ -3,25 +3,26 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-
+#include "filesys/file.h"
 #include "devices/shutdown.h"
 #include "userprog/process.h"
 
 static void syscall_handler (struct intr_frame *);
 
-static void halt (void);
-static void exit (int status);
-static pid_t exec(const char *cmd_line);
-static int wait (pid_t pid);
-static bool create (const char *file, unsigned initial_size);
-static bool remove (const char *file);
-static int open (const char *file);
-static int filesize (int fd);
-static int read (int fd, void *buffer, unsigned size);
-static int write (int fd, const void *buffer, unsigned size);
-static void seek (int fd, unsigned position);
-static unsigned tell (int fd);
-static void close (int fd);
+void halt (void);
+void exit (int status);
+pid_t exec(const char *cmd_line);
+int wait (pid_t pid);
+bool create (const char *file, unsigned initial_size);
+bool remove (const char *file);
+int open (const char *file);
+int filesize (int fd);
+int read (int fd, void *buffer, unsigned size);
+int write (int fd, const void *buffer, unsigned size);
+void seek (int fd, unsigned position);
+unsigned tell (int fd);
+void close (int fd);
+struct file_map* get_file_map(int fd); 
 
 void
 syscall_init (void) 
@@ -161,6 +162,7 @@ int
 open (const char *file) {
   if (file == NULL) return -1;
   struct file* opening = filesys_open(file); 
+  //^filesys_open not defined and file_open takes in inode 
   if (opening == NULL) return -1;
       
   //map the opening file to an available fd (not 0 or 1) and returns fd
@@ -170,7 +172,7 @@ open (const char *file) {
   thread_current() -> next_fd ++;    //increment next available descriptor
   newmap -> filename = opening;
   newmap -> file_id = newfile_id;
-  list_push_back(thread_current()-> files, newmap-> elem); //put this fd-file map into list in struct thread
+  list_push_back(&thread_current()-> files, &newmap-> elem); //put this fd-file map into list in struct thread
   return newfile_id;
 }
     
@@ -195,16 +197,16 @@ close (int fd) {
     struct file_map*
     get_file_map(int fd) { 
       struct list files = thread_current()-> files;
-      struct list_elem e*;
+      struct list_elem *e;
       for (e = list_begin(&files); e != list_end (&files); e = list_next (e)) {
         struct file_map *map = list_entry (e, struct file_map, elem);
-        if (map->fid == fid){
+        if (map->file_id == fd){
           return map;
         } 
       }
       return NULL;
     }
-  }
+ 
 
   
   

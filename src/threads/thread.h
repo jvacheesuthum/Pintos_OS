@@ -88,7 +88,7 @@ struct child_process{
   int exit_status;
   struct list_elem elem;
   struct thread *child; 
-}
+};
 #endif
 
 struct thread
