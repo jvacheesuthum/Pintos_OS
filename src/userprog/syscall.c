@@ -132,7 +132,7 @@ write (int fd, const void *buffer, unsigned size) {
 	putbuf(buffer, wsize);      
 	return size;
     default :
-	struct file_map* target = //get filemap with matching fd -> use map -> files list?
+	struct file_map* target = get_file_map(fd);
 	return file_write(target-> filename, buffer, size);  //defined in file.c
 	break;
     }
@@ -153,6 +153,26 @@ write (int fd, const void *buffer, unsigned size) {
       newmap -> file_id = newfile_id;
       list_push_back(thread_current()-> files, newmap-> elem); //put this fd-file map into list in struct thread
       return newfile_id;
+    }
+    
+    
+    
+    
+    
+    //----------utility fuctions---------------//
+    
+    //takes file descriptor and returns pointer to the file map that corresponds to it
+    struct file_map*
+    get_file_map(int fd) { 
+      struct list files = thread_current()-> files;
+      struct list_elem e*;
+      for (e = list_begin(&files); e != list_end (&files); e = list_next (e)) {
+        struct file_map *map = list_entry (e, struct file_map, elem);
+        if (map->fid == fid){
+          return f;
+        } 
+      }
+      return NULL;
     }
   }
 
