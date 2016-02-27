@@ -46,7 +46,8 @@ syscall_handler (struct intr_frame *f)
    */
 
   // refer to page37 specs // or use esp as int* sys_name as seen in lib/user/syscall.c
-  void *esp   = pagedir_get_page(thread_current()->pagedir, f->esp);
+  void *esp   = pagedir_get_page(thread_current()->pagedir, f->esp); // this can return NULL but will it ever happen?
+                                                                     // should we throw an error when NULL is returned?
   int syscall_name = *(int *)esp; 
   lock_init(&file_lock);
 
