@@ -81,7 +81,7 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
-
+/*
 #ifdef USERPROG
 struct child_process{
   tid_t tid;
@@ -90,7 +90,7 @@ struct child_process{
   struct thread *child; 
 };
 #endif
-
+*/
 struct thread
   {
     /* Owned by thread.c. */
@@ -116,25 +116,29 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-    struct thread *pid_parent;
+//    struct thread *pid_parent;
     // and for childrens, some data structure to record the pointer to the children threads(process) and also record the exit status? 
     bool waited;
     struct thread *parent_process;      // for the process thread in user program to refer back to its parent //
 
     struct list children_process;       // list of data of children processes it spawns//
+    struct list_elem child_elem;
     struct list files;                   //list of open files in user program
     int next_fd;                        //next available fd for opening files in user program
     struct semaphore wait_sema;
+    struct semaphore exit_sema;
+    bool exiting;
+    int exit_status;
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
-
+/*
 #ifdef USERPROG
 void child_process_init(struct child_process*); 
 #endif
-
+*/
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */

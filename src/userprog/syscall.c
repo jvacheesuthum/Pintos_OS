@@ -8,6 +8,7 @@
 #include "userprog/process.h"
 #include "filesys/filesys.h"
 #include "devices/input.h"
+#include "threads/malloc.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -43,45 +44,48 @@ syscall_handler (struct intr_frame *f)
   // refer to page37 specs // or use esp as int* sys_name as seen in lib/user/syscall.c
   void *esp   = f->esp;
   int syscall_name = *(int *)esp; 
-
   switch(syscall_name){
     case SYS_EXIT:
-      printf("before exit in switch");
       exit(*(int *)(esp + 4));   //think this is the right arg for exit -> return afterwards?
-      printf("after exit in switch");
       break;
     case SYS_WRITE:
      write(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
       break;
-    /*case SYS_HALT:
+    case SYS_HALT:
       halt();
       break;
     case SYS_EXEC:
+      exec (*(char **) (esp + 4));
       break;
     case SYS_WAIT:
+      wait (* (int *)(esp + 4));
       break;
     case SYS_CREATE:
+      create(*(char **) (esp + 4), *(unsigned *) (esp + 4*2));
       break;
     case SYS_REMOVE:
       break;
     case SYS_OPEN:
+      open(*(char **) (esp + 4*1));
       break;
     case SYS_FILESIZE:
+      filesize(*(int *) (esp + 4)); 
       break;
     case SYS_READ:
+      read(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
       break;
-    //case SYS_WRITE:
-     // break;
     case SYS_SEEK:
       break;
     case SYS_TELL:
       break;
     case SYS_CLOSE:
+      close(*(int *) (esp + 4)); 
       break;
-*/
+
     default: // original code*/
-      printf("syscall!: %i\n", syscall_name);
-     // thread_exit ();
+//      printf("syscall!: %i\n", syscall_name);
+//      thread_exit ();
+      break;
   }
 }
   //------- write your methods here --------//
@@ -99,11 +103,13 @@ pid_t exec(const char *cmd_line){
 
 void
 exit (int status){
+/*
   struct list exit_statuses = (thread_current() -> parent_process) -> children_process;  
   struct list_elem* e;
   e = list_begin (&exit_statuses);
   while (e != list_end (&exit_statuses)) {
-    struct child_process *cp = list_entry (e, struct child_process, elem);
+//    struct child_process *cp = list_entry (e, struct child_process, elem);
+    struct thread *cp = list_entry (e, struct thread, child_elem);
     if(cp->tid == thread_current()->tid){
       cp -> exit_status = status;
       break;
@@ -111,13 +117,16 @@ exit (int status){
     e = list_next(e);
   }
   thread_exit();    //in thread.c which calls process_exit() in process.c
+*/
+  thread_current()->exit_status = status;
+  thread_exit();
+
 }
 
 int 
 wait (pid_t pid){
   /* All of a process’s resources, including its struct thread, must be freed whether its parent ever waits for it or not, and regardless of whether the child exits before or after its parent.?? FROM SPEC PG 31 */
   //cleaning up happens in process_exit() but can't find where struct thread is cleaned up ????
-  
   return process_wait((tid_t) pid);
 }
   
@@ -164,16 +173,16 @@ read (int fd, void *buffer, unsigned size)
 int
 write (int fd, const void *buffer, unsigned size) {
   //maybe check if buffer pointer is valid here
-  //char* data;
-  //data =  buffer;
+  char* data;
+  data = buffer;
   unsigned wsize = size;
-  //unsigned maxbufout;
+  unsigned maxbufout;
   struct file_map* target;
   switch(fd){
     case 0 :
     	return -1;              //fd 0 is standard in, cannot be written
     case 1 : 			//write to sys console
-	/*maxbufout = 300;
+	maxbufout = 300;
 	if (size > maxbufout) { 	//break up large buffer (>300 bytes for now)
 	  unsigned wsize = size;
 	  char* temp;
@@ -183,7 +192,7 @@ write (int fd, const void *buffer, unsigned size) {
 	    data += maxbufout;       //cuts the first 300 char off data
 	    wsize -= maxbufout;
 	  }
-	}	*/
+	}
 	putbuf(buffer, wsize);      
 	return size;
     default :
@@ -198,16 +207,15 @@ int
 open (const char *file) {
   if (file == NULL) return -1;
   struct file* opening = filesys_open(file); 
-  //^filesys_open not defined and file_open takes in inode 
   if (opening == NULL) return -1;
       
   //map the opening file to an available fd (not 0 or 1) and returns fd
-  struct file_map* newmap;
+  struct file_map* newmap = (struct file_map *) malloc (sizeof(struct file_map));
   int newfile_id = thread_current() -> next_fd;
 //  assert(newfile_id > 1); <-- implicit declar of assert
   thread_current() -> next_fd ++;    //increment next available descriptor
   newmap -> filename = opening;
-  newmap -> file_id = newfile_id;
+  newmap -> file_id = newfile_id; 
   list_push_back(&thread_current()-> files, &newmap-> elem); //put this fd-file map into list in struct thread
   return newfile_id;
 }
@@ -232,13 +240,14 @@ close (int fd) {
 //takes file descriptor and returns pointer to the file map that corresponds to it
 struct file_map*
 get_file_map(int fd) { 
-  struct list files = thread_current()-> files;
+  struct thread *t = thread_current();
   struct list_elem *e;
-  for (e = list_begin(&files); e != list_end (&files); e = list_next (e)) {
+  
+  for (e = list_begin(&t->files); e != list_end (&t->files); e = list_next(e)) {
     struct file_map *map = list_entry (e, struct file_map, elem);
-    if (map->file_id == fd){
+    if (map->file_id == fd) {
       return map;
-    } 
+    }
   }
   return NULL;
 }

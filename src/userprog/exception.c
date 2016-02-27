@@ -83,7 +83,7 @@ kill (struct intr_frame *f)
      exception originated. */
 
   //-- task 2: need to pass -1 as exit status of this process to its parent process --//
-  struct list exit_statuses = (thread_current() -> parent_process) -> children_process;  
+/*  struct list exit_statuses = (thread_current() -> parent_process) -> children_process;  
   struct list_elem* e;
   e = list_begin (&exit_statuses);
   while (e != list_end (&exit_statuses)) {
@@ -93,7 +93,8 @@ kill (struct intr_frame *f)
       break;
     }
     e = list_next(e);
-  }
+  }*/
+  thread_current()->exit_status = -1;
   // ----------//
 
   switch (f->cs)

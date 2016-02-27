@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -55,13 +56,64 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  //-----------ARGPASS---------------//
+  char *token, *save_ptr;
+  int argc, i;
+  int *offsets;
+  size_t file_name_len;
+  void *origin;
+  //----------------------------------//
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
 
+  //-------------ARGPASS--------------//
+  argc = 0;
+  file_name_len = strlen (file_name);
+  offsets = (int *) malloc (file_name_len * sizeof(int));
+  offsets[0] = 0;
+  for (token = strtok_r (file_name, " ", &save_ptr);
+       token != NULL;
+       token = strtok_r (NULL, " ", &save_ptr)) {
+    while (*save_ptr == ' ') save_ptr++;
+    argc++;
+    offsets[argc] = save_ptr - file_name; 
+  }  
+  //-------------------------------------//
+
+  success = load (file_name, &if_.eip, &if_.esp);
+  //-------------ARGPASS-----------------//
+  if (success) {
+    if_.esp -= file_name_len + 1;
+    origin = if_.esp;
+    memcpy (if_.esp, file_name, file_name_len + 1);
+    //round down to a multiple of 4
+    if_.esp -= 4 - ((file_name_len + 1) % 4);
+	//0 for arg_list[argc] and word-align
+    if_.esp -= 4;
+    *(int *) if_.esp = 0;
+	//push elem right to left
+    for (i = argc - 1; i >= 0; i--) {
+      if_.esp -= 4;
+      *(char **) if_.esp = origin + offsets[i];
+    }
+	//argv points to arg_list[0]
+    if_.esp -= 4;
+    *(char **) if_.esp = if_.esp + 4;
+	//pushing argc
+    if_.esp -= 4;
+    *(int *)if_.esp = argc;
+	//fake return addr
+    if_.esp -= 4;
+    *(int *)if_.esp = 0;
+  } 
+
+  free (offsets);
+
+  //--------------------------------------//
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
@@ -90,37 +142,26 @@ int
 process_wait (tid_t child_tid) 
 {
   struct thread *child;
-  int tid_exit_status;
-  struct list children = thread_current() -> children_process;
-
-  struct list_elem* e;
-  struct child_process *cp;
-  e = list_begin (&children);
-  while (e != list_end (&children)) {
-    cp = list_entry (e, struct child_process, elem);
-    if(cp->tid == child_tid){
-      child = cp -> child;
-      tid_exit_status = cp -> exit_status;
-      break;
-    }
-    e = list_next(e);
-  }
-  if(e == list_end(&children) || child-> waited){
-    // 1. invalid tid, child doesn't exist
-    // 2. wait already called on this child
+  int tid_exit_status = -1;
+  
+  child = get_thread(child_tid);
+  if(child == NULL || 
+     child->exit_status == TID_ERROR || 
+     child->waited ||
+     child->parent_process != thread_current()) {
     return -1;
   }
 
-  else if(tid_exit_status == NULL){
-    // actual waiting happens here //
-    child->waited = true;
-    sema_down(&child->wait_sema);  
-    tid_exit_status = cp -> exit_status;
-    return tid_exit_status;
-  }
-  else{
-    return tid_exit_status;
-  }
+
+  child->waited = true;
+  sema_down(&child->wait_sema);
+  if(child->exiting) {
+    tid_exit_status = child->exit_status;
+    sema_up(&child->exit_sema);
+  } else {
+    tid_exit_status = thread_current()->exit_status;
+   }
+  return tid_exit_status;
 }
 
 /* Free the current process's resources. */
@@ -129,13 +170,21 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
-
   //----------Task 2-------------//
+  char *token, *save_ptr;
+  char name[16];
+  token = strtok_r (thread_current()->name, " ", &save_ptr);
+  strlcpy(name, token, strlen(token)+1);
+  printf("%s: exit(%i)\n", name, thread_current()->exit_status);
   if (!list_empty(&cur->wait_sema.waiters)) {
+    (cur->parent_process)->exit_status = cur->exit_status;
     sema_up(&cur->wait_sema);
   }
+  if (cur->parent_process != NULL) {
+    cur->exiting = true;
+    sema_down(&cur->exit_sema);
+  }
   //-----------------------------//
-
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -152,6 +201,7 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+  
 }
 
 /* Sets up the CPU for running user code in the current
@@ -475,7 +525,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE - 12;
+        *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
     }

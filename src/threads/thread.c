@@ -221,23 +221,6 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-#ifdef USERPROG
-  //----------Task 2 ------------//
-  t->waited = false;
-  sema_init(&t->wait_sema, 0);
-  t->pid_parent = thread_current();
-  list_init(&t->children_process);
-  // --moved from process.c-- //
-  struct child_process cp;
-  child_process_init(&cp);
-  cp.child = t;
-  cp.tid = tid;  
-  list_push_back(&(thread_current() -> children_process), &(cp.elem));
-  // ---- //
-  list_init(&t->files);
-  t -> next_fd = 2;           //0 and 1 are reserved - this will be incremented in open syscall
-  //-----------------------------//
-#endif
 
   intr_set_level (old_level);
 
@@ -250,15 +233,38 @@ thread_create (const char *name, int priority,
     thread_yield ();
   }
 
+#ifdef USERPROG
+  //----------Task 2 ------------//
+  t->waited = false;
+  t->exiting = false;
+  sema_init(&t->wait_sema, 0);
+  sema_init(&t->exit_sema, 0);
+//  t->pid_parent = thread_current();
+  t->parent_process = thread_current();
+  list_init(&t->children_process);
+  // --moved from process.c-- //
+/*  struct child_process cp;
+  child_process_init(&cp);
+  cp.child = t;
+  cp.tid = tid;*/
+  if(thread_current() != initial_thread) { 
+    list_push_back(&(thread_current() -> children_process), &t->child_elem);
+  }
+  // ---- //
+  t->exit_status = 0;
+  list_init(&t->files);
+  t -> next_fd = 2;           //0 and 1 are reserved - this will be incremented in open syscall
+  //-----------------------------//
+#endif
   return tid;
 }
-
+/*
 #ifdef USERPROG
 void child_process_init(struct child_process* cp){
   cp -> exit_status = NULL; 
 }
 #endif
-
+*/
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
 
@@ -658,6 +664,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   t->niceness = 0;
   t->recent_cpu = 0;
+  list_init(&t->files);
+
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -786,7 +794,7 @@ get_thread (tid_t tid)
   for (e = list_begin(&all_list); 
        e != list_end(&all_list); 
        e = list_next(e)) {
-    struct thread *t = list_entry(e, struct thread, elem);
+    struct thread *t = list_entry(e, struct thread, allelem);
     if (t->tid == tid) return t;
   }
   return NULL;
