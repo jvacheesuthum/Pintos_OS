@@ -94,6 +94,7 @@ start_process (void *file_name_)
     //round down to a multiple of 4
     if_.esp -= 4 - ((file_name_len + 1) % 4);
 	//0 for arg_list[argc] and word-align
+    *(int *) if_.esp = 0;
     if_.esp -= 4;
     *(int *) if_.esp = 0;
 	//push elem right to left
@@ -200,6 +201,7 @@ process_wait (tid_t child_tid)
   
   //while(1){};
   return -99;
+
 }
 
 /* Free the current process's resources. */

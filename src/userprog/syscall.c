@@ -11,20 +11,23 @@
 
 static void syscall_handler (struct intr_frame *);
 
-void halt (void);
-void exit (int status, struct intr_frame *f);
-pid_t exec(const char *cmd_line);
-int wait (pid_t pid);
-bool create (const char *file, unsigned initial_size);
-bool remove (const char *file);
-int open (const char *file);
-int filesize (int fd);
-int read (int fd, void *buffer, unsigned size);
-int write (int fd, const void *buffer, unsigned size);
-void seek (int fd, unsigned position);
-unsigned tell (int fd);
-void close (int fd);
+
+static void halt (void);
+static void exit (int status, struct intr_frame *f);
+static pid_t exec(const char *cmd_line);
+static int wait (pid_t pid);
+static bool create (const char *file, unsigned initial_size);
+static bool remove (const char *file);
+static int open (const char *file);
+static int filesize (int fd);
+static int read (int fd, void *buffer, unsigned size);
+static int write (int fd, const void *buffer, unsigned size);
+static void seek (int fd, unsigned position);
+static unsigned tell (int fd);
+static void close (int fd);
 struct file_map* get_file_map(int fd); 
+
+static struct lock file_lock;   //lock for manipulating files in process
 
 void
 syscall_init (void) 
@@ -43,6 +46,7 @@ syscall_handler (struct intr_frame *f)
   // refer to page37 specs // or use esp as int* sys_name as seen in lib/user/syscall.c
   void *esp   = f->esp;
   int syscall_name = *(int *)esp; 
+  lock_init(&file_lock);
 
   switch(syscall_name){
     case SYS_EXIT:
@@ -85,18 +89,21 @@ syscall_handler (struct intr_frame *f)
   }
 }
   //------- write your methods here --------//
-void
+static void
 halt(void){
   shutdown_power_off();
 }
 
-pid_t exec(const char *cmd_line){
-  //TODO: add synchronization
-  tid_t pid = process_execute(cmd_line); 
+static pid_t
+exec(const char *cmd_line){
+  //TODO: synchronization
+  tid_t pid = process_execute(cmd_line);
+  //TODO: call open -> pass file pointer to thread -> deny writes in thread 
   //taking pid as tid, both are ints
   return (pid_t) pid;  
 }
 
+static
 void
 exit (int status, struct intr_frame *f){
   /*
@@ -115,6 +122,18 @@ exit (int status, struct intr_frame *f){
         break;
 //      }
       e = list_next(e);
+=======
+static void
+exit (int status){
+  struct list exit_statuses = (thread_current() -> parent_process) -> children_process;  
+  struct list_elem* e;
+  e = list_begin (&exit_statuses);
+  while (e != list_end (&exit_statuses)) {
+    struct child_process *cp = list_entry (e, struct child_process, elem);
+    if(cp->tid == thread_current()->tid){
+      cp -> exit_status = status;
+      break;
+>>>>>>> e2611f8cc46d3033dd7e697856ee268b5bb060b5
     }
   }
 */
@@ -122,7 +141,7 @@ exit (int status, struct intr_frame *f){
   thread_exit();    //in thread.c which calls process_exit() in process.c
 }
 
-int 
+static int 
 wait (pid_t pid){
   /* All of a process’s resources, including its struct thread, must be freed whether its parent ever waits for it or not, and regardless of whether the child exits before or after its parent.?? FROM SPEC PG 31 */
   //cleaning up happens in process_exit() but can't find where struct thread is cleaned up ????
@@ -130,20 +149,23 @@ wait (pid_t pid){
   return process_wait((tid_t) pid);
 }
   
-bool 
+static bool 
 create (const char *file, unsigned initial_size)
 {
   if (file == NULL || initial_size == NULL) return -1;
   return filesys_create(file, initial_size);
 }
 
-int
+static int
 filesize(int fd) {
+  lock_acquire(&file_lock);
   struct file_map* map = get_file_map(fd);
-  return file_length(map-> filename);
+  int length = file_length(map-> filename);
+  lock_release(&file_lock);
+  return length;
 }
 
-int 
+static int 
 read (int fd, void *buffer, unsigned size)
 {
   unsigned count = 0;
@@ -166,11 +188,14 @@ read (int fd, void *buffer, unsigned size)
       if (file_map == NULL) {
         return -1;
       }
-      return file_read (file_map->filename, buffer, size);
+      lock_acquire(&file_lock);
+      int read = file_read (file_map->filename, buffer, size);
+      lock_release(&file_lock);
+      return read;
   }
 }
 
-int
+static int
 write (int fd, const void *buffer, unsigned size) {
   //maybe check if buffer pointer is valid here
   //char* data;
@@ -197,23 +222,25 @@ write (int fd, const void *buffer, unsigned size) {
 	return size;
     default :
 	target = get_file_map(fd);
-	return file_write(target-> filename, buffer, size);  //defined in file.c
-	break;
+	lock_acquire(&file_lock);
+	int write = file_write(target-> filename, buffer, size);  //defined in file.c
+	lock_release(&file_lock);
+	return write;
     }
   }
     
-    //NEEDS LOCK where a file is involve ?
-int
+static int
 open (const char *file) {
   if (file == NULL) return -1;
+  lock_acquire(&file_lock);
   struct file* opening = filesys_open(file); 
+  lock_release(&file_lock);
   //^filesys_open not defined and file_open takes in inode 
   if (opening == NULL) return -1;
       
   //map the opening file to an available fd (not 0 or 1) and returns fd
   struct file_map* newmap;
   int newfile_id = thread_current() -> next_fd;
-//  assert(newfile_id > 1); <-- implicit declar of assert
   thread_current() -> next_fd ++;    //increment next available descriptor
   newmap -> filename = opening;
   newmap -> file_id = newfile_id;
@@ -221,24 +248,37 @@ open (const char *file) {
   return newfile_id;
 }
     
+static void
+seek (int fd, unsigned position) {
+  struct file_map* map = get_file_map(fd);
+  lock_acquire(&file_lock);
+  file_seek(map-> filename, position);
+  lock_release(&file_lock);
+}
 
-
-unsigned
+static unsigned
 tell (int fd) {
   struct file_map* map = get_file_map(fd);
-  return file_tell(map-> filename);
+  lock_acquire(&file_lock);
+  int tell = file_tell(map-> filename);
+  lock_acquire(&file_lock);
+  return tell;
 }    
     
-void
+static void
 close (int fd) {
   struct file_map* map = get_file_map(fd);
+  lock_acquire(&file_lock);
   list_remove(&map-> elem);
   file_close(map-> filename);
+  //might have to free the file/inode ????
+  lock_release(&file_lock);
 }
     
 //----------utility fuctions---------------//
   
 //takes file descriptor and returns pointer to the file map that corresponds to it
+//not sure if it needs lock -> no locks acquired during calls to this
 struct file_map*
 get_file_map(int fd) { 
   struct list files = thread_current()-> files;
