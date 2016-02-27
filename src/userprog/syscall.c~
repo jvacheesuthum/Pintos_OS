@@ -11,8 +11,9 @@
 
 static void syscall_handler (struct intr_frame *);
 
+
 static void halt (void);
-static void exit (int status);
+static void exit (int status, struct intr_frame *f);
 static pid_t exec(const char *cmd_line);
 static int wait (pid_t pid);
 static bool create (const char *file, unsigned initial_size);
@@ -50,7 +51,7 @@ syscall_handler (struct intr_frame *f)
   switch(syscall_name){
     case SYS_EXIT:
       printf("before exit in switch");
-      exit(*(int *)(esp + 4));   //think this is the right arg for exit -> return afterwards?
+      exit(*(int *)(esp + 4), f);   //think this is the right arg for exit -> return afterwards?
       printf("after exit in switch");
       break;
     case SYS_WRITE:
@@ -97,11 +98,32 @@ static pid_t
 exec(const char *cmd_line){
   lock_acquire(&file_lock);
   tid_t pid = process_execute(cmd_line);
-  lock_release(&file_lock;) 
+  lock_release(&file_lock);
+  //deny writes to this file is in start_process and process_exit
   //taking pid as tid, both are ints
   return (pid_t) pid;  
 }
 
+static
+void
+exit (int status, struct intr_frame *f){
+  /*
+  if(thread_current() -> parent_process == NULL){
+    printf("exit syscall: parent is null \n");
+  }
+  else{
+    struct list exit_statuses = (thread_current() -> parent_process) -> children_process;  
+    struct list_elem* e;
+    e = list_begin (&exit_statuses);
+    while (e != list_end (&exit_statuses)) {
+      struct child_process *cp = list_entry (e, struct child_process, elem);
+//      if(cp->tid == thread_current()->tid){
+//        cp -> exit_status = status;
+//        printf(cp);
+        break;
+//      }
+      e = list_next(e);
+=======
 static void
 exit (int status){
   struct list exit_statuses = (thread_current() -> parent_process) -> children_process;  
@@ -112,9 +134,11 @@ exit (int status){
     if(cp->tid == thread_current()->tid){
       cp -> exit_status = status;
       break;
+>>>>>>> e2611f8cc46d3033dd7e697856ee268b5bb060b5
     }
-    e = list_next(e);
   }
+*/
+  f->eax = status;  
   thread_exit();    //in thread.c which calls process_exit() in process.c
 }
 
@@ -137,6 +161,7 @@ static int
 filesize(int fd) {
   lock_acquire(&file_lock);
   struct file_map* map = get_file_map(fd);
+  if (map == NULL) return -1;
   int length = file_length(map-> filename);
   lock_release(&file_lock);
   return length;
@@ -199,6 +224,7 @@ write (int fd, const void *buffer, unsigned size) {
 	return size;
     default :
 	target = get_file_map(fd);
+	if (target == NULL) return -1;
 	lock_acquire(&file_lock);
 	int write = file_write(target-> filename, buffer, size);  //defined in file.c
 	lock_release(&file_lock);
@@ -228,6 +254,7 @@ open (const char *file) {
 static void
 seek (int fd, unsigned position) {
   struct file_map* map = get_file_map(fd);
+  if (map == NULL) exit(-1);
   lock_acquire(&file_lock);
   file_seek(map-> filename, position);
   lock_release(&file_lock);
@@ -236,6 +263,7 @@ seek (int fd, unsigned position) {
 static unsigned
 tell (int fd) {
   struct file_map* map = get_file_map(fd);
+  if (map == NULL) exit(-1);
   lock_acquire(&file_lock);
   int tell = file_tell(map-> filename);
   lock_acquire(&file_lock);
@@ -245,6 +273,7 @@ tell (int fd) {
 static void
 close (int fd) {
   struct file_map* map = get_file_map(fd);
+  if (map == NULL) exit(-1);
   lock_acquire(&file_lock);
   list_remove(&map-> elem);
   file_close(map-> filename);

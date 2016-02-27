@@ -96,9 +96,10 @@ halt(void){
 
 static pid_t
 exec(const char *cmd_line){
-  //TODO: synchronization
+  lock_acquire(&file_lock);
   tid_t pid = process_execute(cmd_line);
-  //TODO: call open -> pass file pointer to thread -> deny writes in thread 
+  lock_release(&file_lock);
+  //deny writes to this file is in start_process and process_exit
   //taking pid as tid, both are ints
   return (pid_t) pid;  
 }
@@ -156,10 +157,20 @@ create (const char *file, unsigned initial_size)
   return filesys_create(file, initial_size);
 }
 
+static bool
+remove (const char *file) {
+  if (file == NULL) exit(-1);
+  lock_acquire(&file_lock);
+  bool remove = filesys_remove(file);
+  lock_release(&file_lock);
+  return remove;
+}
+
 static int
 filesize(int fd) {
   lock_acquire(&file_lock);
   struct file_map* map = get_file_map(fd);
+  if (map == NULL) return -1;
   int length = file_length(map-> filename);
   lock_release(&file_lock);
   return length;
@@ -222,6 +233,7 @@ write (int fd, const void *buffer, unsigned size) {
 	return size;
     default :
 	target = get_file_map(fd);
+	if (target == NULL) return -1;
 	lock_acquire(&file_lock);
 	int write = file_write(target-> filename, buffer, size);  //defined in file.c
 	lock_release(&file_lock);
@@ -251,6 +263,7 @@ open (const char *file) {
 static void
 seek (int fd, unsigned position) {
   struct file_map* map = get_file_map(fd);
+  if (map == NULL) exit(-1);
   lock_acquire(&file_lock);
   file_seek(map-> filename, position);
   lock_release(&file_lock);
@@ -259,6 +272,7 @@ seek (int fd, unsigned position) {
 static unsigned
 tell (int fd) {
   struct file_map* map = get_file_map(fd);
+  if (map == NULL) exit(-1);
   lock_acquire(&file_lock);
   int tell = file_tell(map-> filename);
   lock_acquire(&file_lock);
@@ -268,6 +282,7 @@ tell (int fd) {
 static void
 close (int fd) {
   struct file_map* map = get_file_map(fd);
+  if (map == NULL) exit(-1);
   lock_acquire(&file_lock);
   list_remove(&map-> elem);
   file_close(map-> filename);

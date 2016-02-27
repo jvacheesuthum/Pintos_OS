@@ -128,6 +128,7 @@ struct thread
 //    struct list children_process;       // list of data of children processes it spawns//
     struct list files;                   //list of open files in user program
     int next_fd;                        //next available fd for opening files in user program
+    struct file execfile*;
     struct semaphore wait_sema;
 #endif
 
