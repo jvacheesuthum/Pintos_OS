@@ -47,6 +47,7 @@ syscall_handler (struct intr_frame *f)
 
   // refer to page37 specs // or use esp as int* sys_name as seen in lib/user/syscall.c
   void *esp   = pagedir_get_page(thread_current()->pagedir, f->esp);
+  if (esp == NULL) exit(-1, f);
   int syscall_name = *(int *)esp; 
   lock_init(&file_lock);
 
