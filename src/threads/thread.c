@@ -223,19 +223,37 @@ thread_create (const char *name, int priority,
 
 #ifdef USERPROG
   //----------Task 2 ------------//
+ // list_init(&t->children_processes); // this doesn't work possibly because  the first list not dont get this list_init
   t->waited = false;
   sema_init(&t->wait_sema, 0);
-  t->parent_process = thread_current();
-  list_init(&t->children_process);
+  if(is_thread(running_thread())){
+    printf("parent is a thread\n");
+    t->parent_process = thread_current();
+    if(
+        (thread_current()-> children_processes).head.prev != NULL ||
+        (thread_current()-> children_processes).head.next != &(thread_current()-> children_processes).tail ||
+        (thread_current()-> children_processes).tail.prev != &(thread_current()-> children_processes).head ||
+        (thread_current()-> children_processes).tail.next != NULL)
+      //to check if thread_current->children_processes is init
+    { 
+      list_init(&thread_current()->children_processes); 
+    }
+    else{
+      printf("blah!! \n");
+    }
+    list_push_back(&thread_current() -> children_processes, &t->children_processes_elem); // experiment
+  }else{
+  printf("parent is not a thread!?");
+  }
   // --moved from process.c-- //
-  struct child_process cp;
+/*  struct child_process cp;
   child_process_init(&cp);
   cp.child = t;
   cp.tid = tid;  
   if(thread_current()->parent_process != NULL){
     list_push_back(&(thread_current() -> children_process), &(cp.elem));
   }
-  // ---- //
+*/  // ---- //
   list_init(&t->files);
   t -> next_fd = 2;           //0 and 1 are reserved - this will be incremented in open syscall
   //-----------------------------//
@@ -254,13 +272,13 @@ thread_create (const char *name, int priority,
 
   return tid;
 }
-
+/*
 #ifdef USERPROG
 void child_process_init(struct child_process* cp){
   cp -> exit_status = NULL; 
 }
 #endif
-
+*/
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
 

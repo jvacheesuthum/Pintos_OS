@@ -55,13 +55,64 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  //------New Implementation-------//
+  char *token, *save_ptr;
+  int argc, i;
+  int *offsets;
+  size_t file_name_len;
+  void *start;
+  //-------------------------------//
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+ 
+  //--------New Implementation---------//
+ 
+  argc = 0;
+  file_name_len = strlen (file_name);
+  offsets = (int *) malloc (file_name_len * sizeof(int));
+  offsets[0] = 0;
+  for (token = strtok_r (file_name, " ", &save_ptr);
+       token != NULL;
+       token = strtok_r (NULL, " ", &save_ptr)) {
+    while (*save_ptr == ' ') save_ptr++;
+    argc++;
+    offsets[argc] = save_ptr - file_name; 
+  }
+
+  //-----------------------------------//
+
   success = load (file_name, &if_.eip, &if_.esp);
 
+  if (success) {
+    if_.esp -= file_name_len + 1;
+    start = if_.esp;
+    memcpy (if_.esp, file_name, file_name_len + 1);
+    //round down to a multiple of 4
+    if_.esp -= 4 - ((file_name_len + 1) % 4);
+	//0 for arg_list[argc] and word-align
+    if_.esp -= 4;
+    *(int *) if_.esp = 0;
+	//push elem right to left
+    for (i = argc - 1; i >= 0; i--) {
+      if_.esp -= 4;
+      *(char **) if_.esp = start + offsets[i];
+    }
+	//argv points to arg_list[0]
+    if_.esp -= 4;
+    *(char **) if_.esp = if_.esp + 4;
+	//pushing argc
+    if_.esp -= 4;
+    *(int *)if_.esp = argc;
+	//fake return addr
+    if_.esp -= 4;
+    *(int *)if_.esp = 0;
+  } 
+
+  free (offsets);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
@@ -70,11 +121,12 @@ start_process (void *file_name_)
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
-     arguments on the stack in the form of a `struct intr_frame',
+	 arguments on the stack in the form of a `struct intr_frame',
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
+
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
@@ -89,6 +141,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
+  /*
   struct thread *child;
   int tid_exit_status;
   struct list children = thread_current() -> children_process;
@@ -121,6 +174,32 @@ process_wait (tid_t child_tid)
   else{
     return tid_exit_status;
   }
+  */
+  // minimal implementation of process_wait that doesn't cover conditions in specs //
+  struct thread* child;
+  printf("pointer child: %p\n",child);
+  struct list_elem* e;
+  e = list_begin (&thread_current()->children_processes);
+  while (e != list_end (&thread_current()->children_processes)) {
+    child = list_entry (e, struct thread, children_processes_elem);
+    if(child->tid == child_tid){
+      break;
+    }
+    e = list_next(e);
+  }
+//  child = get_thread(child_tid); // this doesn't work 
+  printf("pointer child: %p\n",child);
+  child->waited = true;
+  printf("pri: %p \n",(void*)&thread_current()->recent_cpu);
+  printf("pri: %p \n",(void*)&child->recent_cpu);
+  printf("pri: %p \n",(void*)child);
+  printf("before sema down\n");
+  sema_down(&child->wait_sema);
+  printf("after sema down\n");
+  // retreive status from eax //
+  
+  //while(1){};
+  return -99;
 }
 
 /* Free the current process's resources. */

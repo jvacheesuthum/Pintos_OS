@@ -12,7 +12,7 @@
 static void syscall_handler (struct intr_frame *);
 
 void halt (void);
-void exit (int status);
+void exit (int status, struct intr_frame *f);
 pid_t exec(const char *cmd_line);
 int wait (pid_t pid);
 bool create (const char *file, unsigned initial_size);
@@ -47,7 +47,7 @@ syscall_handler (struct intr_frame *f)
   switch(syscall_name){
     case SYS_EXIT:
       printf("before exit in switch");
-      exit(*(int *)(esp + 4));   //think this is the right arg for exit -> return afterwards?
+      exit(*(int *)(esp + 4), f);   //think this is the right arg for exit -> return afterwards?
       printf("after exit in switch");
       break;
     case SYS_WRITE:
@@ -98,18 +98,27 @@ pid_t exec(const char *cmd_line){
 }
 
 void
-exit (int status){
-  struct list exit_statuses = (thread_current() -> parent_process) -> children_process;  
-  struct list_elem* e;
-  e = list_begin (&exit_statuses);
-  while (e != list_end (&exit_statuses)) {
-    struct child_process *cp = list_entry (e, struct child_process, elem);
-    if(cp->tid == thread_current()->tid){
-      cp -> exit_status = status;
-      break;
-    }
-    e = list_next(e);
+exit (int status, struct intr_frame *f){
+  /*
+  if(thread_current() -> parent_process == NULL){
+    printf("exit syscall: parent is null \n");
   }
+  else{
+    struct list exit_statuses = (thread_current() -> parent_process) -> children_process;  
+    struct list_elem* e;
+    e = list_begin (&exit_statuses);
+    while (e != list_end (&exit_statuses)) {
+      struct child_process *cp = list_entry (e, struct child_process, elem);
+//      if(cp->tid == thread_current()->tid){
+//        cp -> exit_status = status;
+//        printf(cp);
+        break;
+//      }
+      e = list_next(e);
+    }
+  }
+*/
+  f->eax = status;  
   thread_exit();    //in thread.c which calls process_exit() in process.c
 }
 

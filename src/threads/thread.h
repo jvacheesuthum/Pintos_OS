@@ -82,6 +82,7 @@ typedef int tid_t;
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
 
+/*
 #ifdef USERPROG
 struct child_process{
   tid_t tid;
@@ -90,6 +91,8 @@ struct child_process{
   struct thread *child; 
 };
 #endif
+*/
+
 
 struct thread
   {
@@ -118,7 +121,11 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
     bool waited;
     struct thread *parent_process;      // for the process thread in user program to refer back to its parent //
-    struct list children_process;       // list of data of children processes it spawns//
+  // struct thread *child_process_ex;//experiment 
+    struct list children_processes;
+    struct list_elem children_processes_elem;
+    ////
+//    struct list children_process;       // list of data of children processes it spawns//
     struct list files;                   //list of open files in user program
     int next_fd;                        //next available fd for opening files in user program
     struct semaphore wait_sema;
