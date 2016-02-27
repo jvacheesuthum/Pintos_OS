@@ -137,7 +137,7 @@ exit (int status, struct intr_frame *f){
 =======*/
 static void
 exit (int status, struct intr_frame* f){
-  f->eax = status;
+  if(f != NULL) f->eax = status;
   thread_current()->exit_status = status;
   thread_exit();
 
@@ -153,7 +153,10 @@ wait (pid_t pid){
 static bool 
 create (const char *file, unsigned initial_size)
 {
-  if (file == NULL || initial_size == NULL) return -1;
+  if (file == NULL) {
+    exit(-1, NULL);
+    return NULL;
+  };
   return filesys_create(file, initial_size);
 }
 
