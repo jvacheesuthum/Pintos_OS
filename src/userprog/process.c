@@ -22,6 +22,8 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+static struct thread* get_child(tid_t child_tid, struct list *children_list);
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -56,13 +58,13 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
-  //-----------ARGPASS---------------//
+  //------New Implementation-------//
   char *token, *save_ptr;
   int argc, i;
   int *offsets;
   size_t file_name_len;
   void *origin;
-  //----------------------------------//
+  //-------------------------------//
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -109,11 +111,14 @@ start_process (void *file_name_)
 	//fake return addr
     if_.esp -= 4;
     *(int *)if_.esp = 0;
+    
+    //this denies write to executable file if success --------------
+    thread_current()-> execfile = filesys_open(file_name);
+    file_deny_write(thread_current()-> execfile);
   } 
 
   free (offsets);
 
-  //--------------------------------------//
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
@@ -122,11 +127,12 @@ start_process (void *file_name_)
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
-     arguments on the stack in the form of a `struct intr_frame',
+	 arguments on the stack in the form of a `struct intr_frame',
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
+
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
@@ -141,6 +147,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
+
   struct thread *child;
   int tid_exit_status = -1;
   
@@ -151,8 +158,17 @@ process_wait (tid_t child_tid)
      child->parent_process != thread_current()) {
     return -1;
   }
-
-
+/*
+  struct thread* child;
+  int tid_exit_status = -1;
+  child = get_child(child_tid, &thread_current()->children_processes);
+  if(child == NULL){
+    return -1;
+  }
+  if(child-> waited == true){
+    return -1;
+  }*/
+  //actual waiting
   child->waited = true;
   sema_down(&child->wait_sema);
   if(child->exiting) {
@@ -160,8 +176,23 @@ process_wait (tid_t child_tid)
     sema_up(&child->exit_sema);
   } else {
     tid_exit_status = thread_current()->exit_status;
-   }
+  }
   return tid_exit_status;
+}
+
+static struct thread*
+get_child(tid_t child_tid, struct list *children_list){
+  struct list_elem* e;
+  struct thread* child;
+  e = list_begin (children_list);
+  while (e != list_end (children_list)) {
+    child = list_entry (e, struct thread, children_processes_elem);
+    if(child->tid == child_tid){
+      return child;
+    }
+    e = list_next(e);
+  }
+  return NULL; 
 }
 
 /* Free the current process's resources. */
@@ -201,7 +232,11 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  
+    
+  //allows write to executable file after exit -----
+  if (cur-> execfile != NULL) {
+    file_allow_write(cur-> execfile);
+  }
 }
 
 /* Sets up the CPU for running user code in the current

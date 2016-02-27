@@ -73,6 +73,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+void thread_yield(void);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -84,7 +85,7 @@ static tid_t allocate_tid (void);
    After calling this function, be sure to initialize the page
    allocator before trying to create any threads with
    thread_create().
-
+ 
    It is not safe to call thread_current() until this function
    finishes. */
 void
@@ -235,25 +236,42 @@ thread_create (const char *name, int priority,
 
 #ifdef USERPROG
   //----------Task 2 ------------//
+ // list_init(&t->children_processes); // this doesn't work possibly because  the first list not dont get this list_init
   t->waited = false;
   t->exiting = false;
   sema_init(&t->wait_sema, 0);
   sema_init(&t->exit_sema, 0);
-//  t->pid_parent = thread_current();
   t->parent_process = thread_current();
-  list_init(&t->children_process);
-  // --moved from process.c-- //
-/*  struct child_process cp;
-  child_process_init(&cp);
-  cp.child = t;
-  cp.tid = tid;*/
-  if(thread_current() != initial_thread) { 
-    list_push_back(&(thread_current() -> children_process), &t->child_elem);
+  list_init(&t->children_processes);
+/*
+  if(is_thread(running_thread())){
+    printf("parent is a thread\n");
+    t->parent_process = thread_current();
+    if(
+        (thread_current()-> children_processes).head.prev != NULL ||
+        (thread_current()-> children_processes).head.next != &(thread_current()-> children_processes).tail ||
+        (thread_current()-> children_processes).tail.prev != &(thread_current()-> children_processes).head ||
+        (thread_current()-> children_processes).tail.next != NULL)
+      //to check if thread_current->children_processes is init
+    { 
+      list_init(&thread_current()->children_processes); 
+    }
+    else{
+      printf("blah!! \n");
+    }
+    list_push_back(&thread_current() -> children_processes, &t->children_processes_elem); // experiment
+  }else{
+  printf("parent is not a thread!?");
   }
-  // ---- //
+*/
+
+  if(thread_current() != initial_thread) { 
+    list_push_back(&(thread_current()->children_processes), &t->children_processes_elem);
+  }
   t->exit_status = 0;
+  // -- file handling -- //
   list_init(&t->files);
-  t -> next_fd = 2;           //0 and 1 are reserved - this will be incremented in open syscall
+  t -> next_fd = 2;           
   //-----------------------------//
 #endif
   return tid;
@@ -797,6 +815,7 @@ get_thread (tid_t tid)
     struct thread *t = list_entry(e, struct thread, allelem);
     if (t->tid == tid) return t;
   }
+  printf("returning null!\n");
   return NULL;
 }
 
