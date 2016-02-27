@@ -46,8 +46,8 @@ syscall_handler (struct intr_frame *f)
    */
 
   // refer to page37 specs // or use esp as int* sys_name as seen in lib/user/syscall.c
-  void *esp   = pagedir_get_page(thread_current()->pagedir, f->esp); // this can return NULL but will it ever happen?
-                                                                     // should we throw an error when NULL is returned?
+  void *esp   = pagedir_get_page(thread_current()->pagedir, f->esp);
+  if (esp == NULL) exit(-1, f);
   int syscall_name = *(int *)esp; 
   lock_init(&file_lock);
 
@@ -80,7 +80,7 @@ syscall_handler (struct intr_frame *f)
       f->eax = filesize(*(int *) (esp + 4)); 
       break;
     case SYS_READ:
-      //f->eax = read(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
+      f->eax = read(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
       break;
     case SYS_SEEK:
       seek(*(int *)(esp + 4), *(unsigned *)(esp + 4*2), f);
@@ -137,7 +137,7 @@ exit (int status, struct intr_frame *f){
 =======*/
 static void
 exit (int status, struct intr_frame* f){
-  f->eax = status;
+  if(f != NULL) f->eax = status;
   thread_current()->exit_status = status;
   thread_exit();
 
@@ -153,7 +153,10 @@ wait (pid_t pid){
 static bool 
 create (const char *file, unsigned initial_size)
 {
-  if (file == NULL || initial_size == NULL) return -1;
+  if (file == NULL) {
+    exit(-1, NULL);
+    return NULL;
+  };
   return filesys_create(file, initial_size);
 }
 
@@ -187,11 +190,7 @@ read (int fd, void *buffer, unsigned size)
         *(uint8_t *)(buffer + count) = input_getc();
         count++;
       }
-      if (count == size) {
-        return size;
-      } else {
-        return count;
-      }
+      return count;
     case 1:
       return -1;
     default:
@@ -243,12 +242,17 @@ write (int fd, const void *buffer, unsigned size) {
     
 static int
 open (const char *file) {
-  if (file == NULL) return -1;
+  if (file == NULL) {
+    exit(-1, NULL);
+    return -1;
+  }
   lock_acquire(&file_lock);
   struct file* opening = filesys_open(file); 
   lock_release(&file_lock);
-  if (opening == NULL) return -1;
-      
+  if (opening == NULL){
+    exit(-1, NULL);
+    return -1;
+  }    
   //map the opening file to an available fd (not 0 or 1) and returns fd
   struct file_map* newmap = (struct file_map *) malloc (sizeof(struct file_map));
   int newfile_id = thread_current() -> next_fd;

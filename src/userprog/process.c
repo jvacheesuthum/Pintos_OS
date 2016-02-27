@@ -176,6 +176,7 @@ process_wait (tid_t child_tid)
     sema_up(&child->exit_sema);
   } else {
     tid_exit_status = thread_current()->exit_status;
+    // when will this case happen?
   }
   return tid_exit_status;
 }
