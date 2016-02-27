@@ -14,19 +14,19 @@ static void syscall_handler (struct intr_frame *);
 
 
 static void halt (void);
-//static void exit (int status, struct intr_frame *f);
-static void exit (int status);
+static void exit (int status, struct intr_frame *f);
+//static void exit (int status);
 static pid_t exec(const char *cmd_line);
 static int wait (pid_t pid);
 static bool create (const char *file, unsigned initial_size);
-static bool remove (const char *file);
+static bool remove (const char *file, struct intr_frame *f);
 static int open (const char *file);
 static int filesize (int fd);
 static int read (int fd, void *buffer, unsigned size);
 static int write (int fd, const void *buffer, unsigned size);
-static void seek (int fd, unsigned position);
-static unsigned tell (int fd);
-static void close (int fd);
+static void seek (int fd, unsigned position, struct intr_frame *f);
+static unsigned tell (int fd, struct intr_frame *f);
+static void close (int fd, struct intr_frame *f);
 struct file_map* get_file_map(int fd); 
 
 static struct lock file_lock;   //lock for manipulating files in process
@@ -46,47 +46,49 @@ syscall_handler (struct intr_frame *f)
    */
 
   // refer to page37 specs // or use esp as int* sys_name as seen in lib/user/syscall.c
-  void *esp   = f->esp;
+  void *esp   = pagedir_get_page(thread_current()->pagedir, f->esp);
   int syscall_name = *(int *)esp; 
   lock_init(&file_lock);
 
   switch(syscall_name){
     case SYS_EXIT:
-//      exit(*(int *)(esp + 4), f);   //think this is the right arg for exit -> return afterwards?
-      exit(*(int *) (esp + 4));
+      exit(*(int *) (esp + 4),f);
       break;
     case SYS_WRITE:
-     write(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
+      f->eax = write(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
       break;
     case SYS_HALT:
       halt();
       break;
     case SYS_EXEC:
-      exec (*(char **) (esp + 4));
+      f->eax = exec (*(char **) (esp + 4));
       break;
     case SYS_WAIT:
-      wait (* (int *)(esp + 4));
+      f->eax = wait (* (int *)(esp + 4));
       break;
     case SYS_CREATE:
-      create(*(char **) (esp + 4), *(unsigned *) (esp + 4*2));
+      f->eax = create(*(char **) (esp + 4), *(unsigned *) (esp + 4*2));
       break;
     case SYS_REMOVE:
+      f->eax = remove(*(char **) (esp + 4),f);
       break;
     case SYS_OPEN:
-      open(*(char **) (esp + 4*1));
+      f->eax = open(*(char **) (esp + 4*1));
       break;
     case SYS_FILESIZE:
-      filesize(*(int *) (esp + 4)); 
+      f->eax = filesize(*(int *) (esp + 4)); 
       break;
     case SYS_READ:
-      read(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
+      //f->eax = read(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
       break;
     case SYS_SEEK:
+      seek(*(int *)(esp + 4), *(unsigned *)(esp + 4*2), f);
       break;
     case SYS_TELL:
+      f->eax = tell(*(int *)(esp + 4), f);
       break;
     case SYS_CLOSE:
-      close(*(int *) (esp + 4)); 
+      close(*(int *) (esp + 4), f); 
       break;
 
     default: // original code*/
@@ -133,19 +135,8 @@ exit (int status, struct intr_frame *f){
       e = list_next(e);
 =======*/
 static void
-exit (int status){
-/*  struct list exit_statuses = (thread_current() -> parent_process) -> children_processes;  
-  struct list_elem* e;
-  e = list_begin (&exit_statuses);
-  while (e != list_end (&exit_statuses)) {
-//    struct child_process *cp = list_entry (e, struct child_process, elem);
-    struct thread *cp = list_entry (e, struct thread, child_elem);
-    if(cp->tid == thread_current()->tid){
-      cp -> exit_status = status;
-      break;
-    }
-  }*/
-//  f->eax = status;  
+exit (int status, struct intr_frame* f){
+  f->eax = status;
   thread_current()->exit_status = status;
   thread_exit();
 
@@ -166,8 +157,8 @@ create (const char *file, unsigned initial_size)
 }
 
 static bool
-remove (const char *file) {
-  if (file == NULL) exit(-1);
+remove (const char *file, struct intr_frame* f) {
+  if (file == NULL) exit(-1, f);
   lock_acquire(&file_lock);
   bool remove = filesys_remove(file);
   lock_release(&file_lock);
@@ -268,18 +259,18 @@ open (const char *file) {
 }
     
 static void
-seek (int fd, unsigned position) {
+seek (int fd, unsigned position, struct intr_frame* f) {
   struct file_map* map = get_file_map(fd);
-  if (map == NULL) exit(-1);
+  if (map == NULL) exit(-1,f);
   lock_acquire(&file_lock);
   file_seek(map-> filename, position);
   lock_release(&file_lock);
 }
 
 static unsigned
-tell (int fd) {
+tell (int fd, struct intr_frame* f) {
   struct file_map* map = get_file_map(fd);
-  if (map == NULL) exit(-1);
+  if (map == NULL) exit(-1,f);
   lock_acquire(&file_lock);
   int tell = file_tell(map-> filename);
   lock_acquire(&file_lock);
@@ -287,9 +278,9 @@ tell (int fd) {
 }    
     
 static void
-close (int fd) {
+close (int fd, struct intr_frame* f) {
   struct file_map* map = get_file_map(fd);
-  if (map == NULL) exit(-1);
+  if (map == NULL) exit(-1,f);
   lock_acquire(&file_lock);
   list_remove(&map-> elem);
   file_close(map-> filename);
