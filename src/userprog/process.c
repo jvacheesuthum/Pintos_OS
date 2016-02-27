@@ -111,6 +111,10 @@ start_process (void *file_name_)
 	//fake return addr
     if_.esp -= 4;
     *(int *)if_.esp = 0;
+    
+    //this denies write to executable file if success --------------
+    thread_current()-> execfile = filesys_open(file_name);
+    file_deny_write(thread_current()-> execfile);
   } 
 
   free (offsets);
@@ -233,6 +237,11 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+    
+  //allows write to executable file after exit -----
+  if (cur-> execfile != NULL) {
+    file_allow_write(cur-> execfile);
+  }
 }
 
 /* Sets up the CPU for running user code in the current
