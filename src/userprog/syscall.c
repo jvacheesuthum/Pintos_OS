@@ -157,6 +157,15 @@ create (const char *file, unsigned initial_size)
   return filesys_create(file, initial_size);
 }
 
+static bool
+remove (const char *file) {
+  if (file == NULL) exit(-1);
+  lock_acquire(&file_lock);
+  bool remove = filesys_remove(file);
+  lock_release(&file_lock);
+  return remove;
+}
+
 static int
 filesize(int fd) {
   lock_acquire(&file_lock);
