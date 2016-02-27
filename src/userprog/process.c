@@ -21,6 +21,8 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+static struct thread* get_child(tid_t child_tid, struct list *children_list);
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -141,67 +143,44 @@ start_process (void *file_name_)
    does nothing. */
 int
 process_wait (tid_t child_tid) 
-{
-  /*
-  struct thread *child;
-  int tid_exit_status;
-  struct list children = thread_current() -> children_process;
-
-  struct list_elem* e;
-  struct child_process *cp;
-  e = list_begin (&children);
-  while (e != list_end (&children)) {
-    cp = list_entry (e, struct child_process, elem);
-    if(cp->tid == child_tid){
-      child = cp -> child;
-      tid_exit_status = cp -> exit_status;
-      break;
-    }
-    e = list_next(e);
-  }
-  if(e == list_end(&children) || child-> waited){
-    // 1. invalid tid, child doesn't exist
-    // 2. wait already called on this child
-    return -1;
-  }
-
-  else if(tid_exit_status == NULL){
-    // actual waiting happens here //
-    child->waited = true;
-    sema_down(&child->wait_sema);  
-    tid_exit_status = cp -> exit_status;
-    return tid_exit_status;
-  }
-  else{
-    return tid_exit_status;
-  }
-  */
+{ 
   // minimal implementation of process_wait that doesn't cover conditions in specs //
   struct thread* child;
   printf("pointer child: %p\n",child);
-  struct list_elem* e;
-  e = list_begin (&thread_current()->children_processes);
-  while (e != list_end (&thread_current()->children_processes)) {
-    child = list_entry (e, struct thread, children_processes_elem);
-    if(child->tid == child_tid){
-      break;
-    }
-    e = list_next(e);
+  child = get_child(child_tid, &thread_current()->children_processes);
+  if(child == NULL){
+    printf("process_wait: get child = null\n");
+    return -1;
   }
-//  child = get_thread(child_tid); // this doesn't work 
   printf("pointer child: %p\n",child);
+  if(child-> waited == true){
+    printf("process_wait: called wait on it twice \n");
+    return -1;
+  }
+  //actual waiting
   child->waited = true;
-  printf("pri: %p \n",(void*)&thread_current()->recent_cpu);
-  printf("pri: %p \n",(void*)&child->recent_cpu);
-  printf("pri: %p \n",(void*)child);
   printf("before sema down\n");
   sema_down(&child->wait_sema);
   printf("after sema down\n");
   // retreive status from eax //
   
-  //while(1){};
   return -99;
 
+}
+
+static struct thread*
+get_child(tid_t child_tid, struct list *children_list){
+  struct list_elem* e;
+  struct thread* child;
+  e = list_begin (children_list);
+  while (e != list_end (children_list)) {
+    child = list_entry (e, struct thread, children_processes_elem);
+    if(child->tid == child_tid){
+      return child;
+    }
+    e = list_next(e);
+  }
+  return NULL; 
 }
 
 /* Free the current process's resources. */
