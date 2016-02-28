@@ -253,7 +253,7 @@ write (int fd, const void *buffer, unsigned size) {
 static int
 open (const char *file) {
   if (file == NULL) {
-    exit(-1, NULL);
+//    exit(-1, NULL);
     return -1;
   }
   lock_acquire(&file_lock);
@@ -265,11 +265,13 @@ open (const char *file) {
   }    
   //map the opening file to an available fd (not 0 or 1) and returns fd
   struct file_map* newmap = (struct file_map *) malloc (sizeof(struct file_map));
+  lock_acquire(&file_lock);
   int newfile_id = thread_current() -> next_fd;
   thread_current() -> next_fd ++;    //increment next available descriptor
   newmap -> filename = opening;
   newmap -> file_id = newfile_id; 
   list_push_back(&thread_current()-> files, &newmap-> elem); //put this fd-file map into list in struct thread
+  lock_release(&file_lock);
   return newfile_id;
 }
     

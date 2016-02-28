@@ -34,15 +34,29 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 
+  char *fn_copy2, *save_ptr;
+
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+ 
+  //-----------ARG PASS-------------------//
+  //Get the file name for thread create
+  fn_copy2 = malloc (strlen(file_name) + 1);
+  if (fn_copy2 == NULL) {
+    palloc_free_page (fn_copy);
+    exit(-1, NULL);
+  }
+//  strlcpy (fn_copy2, file_name, PGSIZE);
+  memcpy (fn_copy2, file_name, strlen(file_name) + 1);
+  file_name = strtok_r (fn_copy2, " ", &save_ptr);
+  //---------------------------------------//
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (fn_copy2, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
 
@@ -57,7 +71,6 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  unsigned int temp = (unsigned int *) file_name;
   //------New Implementation-------//
   char *token, *save_ptr;
   int argc, i;
@@ -76,6 +89,9 @@ start_process (void *file_name_)
   argc = 0;
   file_name_len = strlen (file_name);
   offsets = (int *) malloc (file_name_len * sizeof(int));
+  if (offsets == NULL) {
+    exit(-1, NULL);
+  }
   offsets[0] = 0;
   for (token = strtok_r (file_name, " ", &save_ptr);
        token != NULL;
@@ -114,6 +130,8 @@ start_process (void *file_name_)
     //this denies write to executable file if success --------------
     thread_current()-> execfile = filesys_open(file_name);
     file_deny_write(thread_current()-> execfile);
+    
+//    sema_up (&thread_current()->wait_sema);
   } 
 
   free (offsets);
@@ -202,11 +220,11 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
   //----------Task 2-------------//
-  char *token, *save_ptr;
-  char name[16];
-  token = strtok_r (thread_current()->name, " ", &save_ptr);
-  strlcpy(name, token, strlen(token)+1);
-  printf("%s: exit(%i)\n", name, thread_current()->exit_status);
+//  char *token, *save_ptr;
+//  char name[16];
+//  token = strtok_r (thread_current()->name, " ", &save_ptr);
+//  strlcpy(name, token, strlen(token)+1);
+  printf("%s: exit(%i)\n", thread_current()->name, thread_current()->exit_status);
   if (!list_empty(&cur->wait_sema.waiters)) {
     (cur->parent_process)->exit_status = cur->exit_status;
     sema_up(&cur->wait_sema);
