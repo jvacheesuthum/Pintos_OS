@@ -235,40 +235,19 @@ thread_create (const char *name, int priority,
   }
 
 #ifdef USERPROG
-  //----------Task 2 ------------//
- // list_init(&t->children_processes); // this doesn't work possibly because  the first list not dont get this list_init
-  t->waited = false;
-  t->exiting = false;
-  sema_init(&t->wait_sema, 0);
-  sema_init(&t->exit_sema, 0);
+ // task 2//
+  // --- //
   t->parent_process = thread_current();
   list_init(&t->children_processes);
-/*
-  if(is_thread(running_thread())){
-    printf("parent is a thread\n");
-    t->parent_process = thread_current();
-    if(
-        (thread_current()-> children_processes).head.prev != NULL ||
-        (thread_current()-> children_processes).head.next != &(thread_current()-> children_processes).tail ||
-        (thread_current()-> children_processes).tail.prev != &(thread_current()-> children_processes).head ||
-        (thread_current()-> children_processes).tail.next != NULL)
-      //to check if thread_current->children_processes is init
-    { 
-      list_init(&thread_current()->children_processes); 
-    }
-    else{
-      printf("blah!! \n");
-    }
-    list_push_back(&thread_current() -> children_processes, &t->children_processes_elem); // experiment
-  }else{
-  printf("parent is not a thread!?");
-  }
-*/
+  sema_init(&t->process_wait_sema, 0);
 
+  struct child_process *cp = (struct child_process *) malloc(sizeof(struct child_process));
+  child_process_init(cp, t->tid); 
+  
   if(thread_current() != initial_thread) { 
-    list_push_back(&(thread_current()->children_processes), &t->children_processes_elem);
+    list_push_back(&(thread_current()->children_processes), &cp->cp_elem);
   }
-  t->exit_status = 0;
+  // --- //
   // -- file handling -- //
   list_init(&t->files);
   t -> next_fd = 2;           
@@ -276,13 +255,15 @@ thread_create (const char *name, int priority,
 #endif
   return tid;
 }
-/*
+
 #ifdef USERPROG
-void child_process_init(struct child_process* cp){
-  cp -> exit_status = NULL; 
+void child_process_init(struct child_process* cp, tid_t tid){
+  cp->tid = tid;
+  cp->waited = false;
+  cp->exit_status = -1;     // set default as -1 becuase any termination other than with exit() will cause status -1
 }
 #endif
-*/
+
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
 

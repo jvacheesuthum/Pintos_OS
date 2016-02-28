@@ -22,7 +22,6 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
-static struct thread* get_child(tid_t child_tid, struct list *children_list);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -164,47 +163,39 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
+  //---//
+  struct thread *child = get_thread(child_tid);
+  struct child_process *cp 
+    = get_child_process(child_tid, &thread_current()->children_processes);
 
-  struct thread *child;
-  int tid_exit_status = -1;
-  
-  child = get_thread(child_tid);
-  if(child == NULL || 
-     child->exit_status == TID_ERROR || 
-     child->waited ||
-     child->parent_process != thread_current()) {
+  if(child == NULL && cp == NULL){
+    /*invalud tid*/
+    printf("hereee \n");
     return -1;
   }
-/*
-  struct thread* child;
-  int tid_exit_status = -1;
-  child = get_child(child_tid, &thread_current()->children_processes);
+  if(cp->waited == true){
+    /*process_wait has already been called on it*/
+    return -1;
+  }
   if(child == NULL){
-    return -1;
+    /*child thread no longer exist, ie terminated 
+      if terminated by kernel will return -1*/
+    return cp->exit_status;
   }
-  if(child-> waited == true){
-    return -1;
-  }*/
-  //actual waiting
-  child->waited = true;
-  sema_down(&child->wait_sema);
-  if(child->exiting) {
-    tid_exit_status = child->exit_status;
-    sema_up(&child->exit_sema);
-  } else {
-    tid_exit_status = thread_current()->exit_status;
-    // when will this case happen?
-  }
-  return tid_exit_status;
+  /*actual waiting*/
+  cp->waited == true;
+  sema_down(&child->process_wait_sema);
+  return cp->exit_status;
+  //---//
 }
 
-static struct thread*
-get_child(tid_t child_tid, struct list *children_list){
+struct child_process*
+get_child_process(tid_t child_tid, struct list *children_list){
   struct list_elem* e;
-  struct thread* child;
+  struct child_process* child;
   e = list_begin (children_list);
   while (e != list_end (children_list)) {
-    child = list_entry (e, struct thread, children_processes_elem);
+    child = list_entry (e, struct child_process, cp_elem);
     if(child->tid == child_tid){
       return child;
     }
@@ -220,19 +211,21 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
   //----------Task 2-------------//
-//  char *token, *save_ptr;
-//  char name[16];
-//  token = strtok_r (thread_current()->name, " ", &save_ptr);
-//  strlcpy(name, token, strlen(token)+1);
-  printf("%s: exit(%i)\n", thread_current()->name, thread_current()->exit_status);
-  if (!list_empty(&cur->wait_sema.waiters)) {
-    (cur->parent_process)->exit_status = cur->exit_status;
-    sema_up(&cur->wait_sema);
+  //---//
+  if (!list_empty(&cur->process_wait_sema.waiters)) {
+    sema_up(&cur->process_wait_sema); //here instead of exit() syscall.c 
+                              //because this also needs to happen at exception
   }
-  if (cur->parent_process != NULL) {
-    cur->exiting = true;
-    sema_down(&cur->exit_sema);
+  //free the child process malloc
+  struct list_elem* e;
+  struct child_process* child;
+  e = list_begin (&cur->children_processes);
+  while (e != list_end (&cur->children_processes)) {
+    child = list_entry (e, struct child_process, cp_elem);
+    free(child); 
+    e = list_next(e);
   }
+  //---//
   //-----------------------------//
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */

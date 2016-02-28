@@ -84,21 +84,6 @@ kill (struct intr_frame *f)
      
   /* The interrupt frame's code segment value tells us where the
      exception originated. */
-/*
-  //-- task 2: need to pass -1 as exit status of this process to its parent process --//
-  struct list exit_statuses = (thread_current() -> parent_process) -> children_process;  
-  struct list_elem* e;
-  e = list_begin (&exit_statuses);
-  while (e != list_end (&exit_statuses)) {
-    struct child_process *cp = list_entry (e, struct child_process, elem);
-    if(cp->tid == thread_current()->tid){
-      cp -> exit_status = -1;
-      break;
-    }
-    e = list_next(e);
-  }*/
-  thread_current()->exit_status = -1;
-  // ----------//
 
   switch (f->cs)
     {
