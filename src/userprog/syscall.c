@@ -16,7 +16,7 @@ static void syscall_handler (struct intr_frame *);
 
 
 static void halt (void);
-static void exit (int status, struct intr_frame *f);
+void exit (int status, struct intr_frame *f);
 //static void exit (int status);
 static pid_t exec(const char *cmd_line);
 static int wait (pid_t pid);
@@ -49,7 +49,10 @@ syscall_handler (struct intr_frame *f)
 
   // refer to page37 specs // or use esp as int* sys_name as seen in lib/user/syscall.c
   void *esp = pagedir_get_page(thread_current()->pagedir, f->esp);
-  if (esp == NULL || esp < PHYS_BASE) exit(-1, f);
+  if (esp == NULL || 
+     esp < PHYS_BASE) {
+       exit(-1, f);
+  }
   int syscall_name = *(int *)esp;
   if (syscall_name < SYS_HALT || syscall_name > SYS_INUMBER) exit(-1, f);
   lock_init(&file_lock);
@@ -137,7 +140,7 @@ exit (int status, struct intr_frame *f){
 //      }
       e = list_next(e);
 =======*/
-static void
+void
 exit (int status, struct intr_frame* f){
   if(f != NULL) f->eax = status;
   thread_current()->exit_status = status;
@@ -231,7 +234,6 @@ write (int fd, const void *buffer, unsigned size) {
 	    wsize -= maxbufout;
 	  }
 	}
-        if(buffer == NULL) printf("HERERERERE:\n");
 	putbuf(buffer, wsize);      
 	return size;
     default :
@@ -254,7 +256,6 @@ open (const char *file) {
   struct file* opening = filesys_open(file); 
   lock_release(&file_lock);
   if (opening == NULL){
-    printf("KLSDJFLSDKJFDKS\n");
     exit(-1, NULL);
     return -1;
   }    
