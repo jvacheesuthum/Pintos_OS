@@ -57,7 +57,7 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-
+  unsigned int temp = (unsigned int *) file_name;
   //------New Implementation-------//
   char *token, *save_ptr;
   int argc, i;
@@ -85,7 +85,6 @@ start_process (void *file_name_)
     offsets[argc] = save_ptr - file_name; 
   }  
   //-------------------------------------//
-
   success = load (file_name, &if_.eip, &if_.esp);
   //-------------ARGPASS-----------------//
   if (success) {

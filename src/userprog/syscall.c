@@ -9,6 +9,8 @@
 #include "filesys/filesys.h"
 #include "devices/input.h"
 #include "threads/malloc.h"
+#include "threads/vaddr.h"
+#include "userprog/pagedir.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -46,11 +48,11 @@ syscall_handler (struct intr_frame *f)
    */
 
   // refer to page37 specs // or use esp as int* sys_name as seen in lib/user/syscall.c
-  void *esp   = pagedir_get_page(thread_current()->pagedir, f->esp);
-  if (esp == NULL) exit(-1, f);
-  int syscall_name = *(int *)esp; 
+  void *esp = pagedir_get_page(thread_current()->pagedir, f->esp);
+  if (esp == NULL || esp < PHYS_BASE) exit(-1, f);
+  int syscall_name = *(int *)esp;
+  if (syscall_name < SYS_HALT || syscall_name > SYS_INUMBER) exit(-1, f);
   lock_init(&file_lock);
-
   switch(syscall_name){
     case SYS_EXIT:
       exit(*(int *) (esp + 4),f);
@@ -215,7 +217,8 @@ write (int fd, const void *buffer, unsigned size) {
   struct file_map* target;
   switch(fd){
     case 0 :
-    	return -1;              //fd 0 is standard in, cannot be written
+      exit(-1, NULL); 
+      return -1;              //fd 0 is standard in, cannot be written
     case 1 : 			//write to sys console
 	maxbufout = 300;
 	if (size > maxbufout) { 	//break up large buffer (>300 bytes for now)
@@ -228,6 +231,7 @@ write (int fd, const void *buffer, unsigned size) {
 	    wsize -= maxbufout;
 	  }
 	}
+        if(buffer == NULL) printf("HERERERERE:\n");
 	putbuf(buffer, wsize);      
 	return size;
     default :
@@ -250,6 +254,7 @@ open (const char *file) {
   struct file* opening = filesys_open(file); 
   lock_release(&file_lock);
   if (opening == NULL){
+    printf("KLSDJFLSDKJFDKS\n");
     exit(-1, NULL);
     return -1;
   }    
