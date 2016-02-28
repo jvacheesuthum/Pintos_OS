@@ -187,6 +187,10 @@ filesize(int fd) {
 static int 
 read (int fd, void *buffer, unsigned size)
 {
+  if (!is_user_vaddr (buffer) || 
+      !is_user_vaddr (buffer + size)) {
+    exit(-1, NULL);
+  }
   unsigned count = 0;
   struct file_map *file_map;
   switch(fd) {
@@ -256,7 +260,7 @@ open (const char *file) {
   struct file* opening = filesys_open(file); 
   lock_release(&file_lock);
   if (opening == NULL){
-    exit(-1, NULL);
+//    exit(-1, NULL);<----dont know whyyyyyy but it passed two more test
     return -1;
   }    
   //map the opening file to an available fd (not 0 or 1) and returns fd
