@@ -62,14 +62,14 @@ process_execute (const char *file_name)
 
   
   
-  //lock_acquire(&file_lock);
+  lock_acquire(&file_lock);
   struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
   if (dir != NULL)
     dir_lookup (dir, fn_copy2, &inode);
   else {printf("dir is null");}
-  //dir_close (dir);
-  //lock_release(&file_lock);
+  dir_close (dir);
+  lock_release(&file_lock);
   
   if (inode == NULL)
     return TID_ERROR;
@@ -189,22 +189,26 @@ int
 process_wait (tid_t child_tid) 
 {
   //---//
+//  printf("processwait prints anything\n");
   struct thread *child = get_thread(child_tid);
   struct child_process *cp 
     = get_child_process(child_tid, &thread_current()->children_processes);
  
   if(child == NULL && cp == NULL){
-    /*invalud tid*/
+    /*invalid tid*/
+//    printf("processwait invalid tid return -1\n");
     return -1;
   }
   if(cp->waited == true){
     /*process_wait has already been called on it*/
+//    printf("processwait waited twice return -1\n");
     return -1;
   }
   cp->waited = true;
   if(child == NULL){
     /*child thread no longer exist, ie terminated 
       if terminated by kernel will return -1*/
+//    printf("processwait return terminated process exit status = %i\n",cp->exit_status);
     return cp->exit_status;
   }
   /*actual waiting*/
