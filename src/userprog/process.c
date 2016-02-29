@@ -168,6 +168,7 @@ process_wait (tid_t child_tid)
 //  printf("threadcurrent in processwait: tid %i\n",thread_current()->tid);
   struct child_process *cp 
     = get_child_process(child_tid, &thread_current()->children_processes);
+  
   if(child == NULL && cp == NULL){
     /*invalud tid*/
     return -1;
@@ -176,13 +177,13 @@ process_wait (tid_t child_tid)
     /*process_wait has already been called on it*/
     return -1;
   }
+  cp->waited = true;
   if(child == NULL){
     /*child thread no longer exist, ie terminated 
       if terminated by kernel will return -1*/
     return cp->exit_status;
   }
   /*actual waiting*/
-  cp->waited == true;
   sema_down(&child->process_wait_sema);
   return cp->exit_status;
   //---//
@@ -222,7 +223,7 @@ process_exit (void)
   e = list_begin (&cur->children_processes);
   while (e != list_end (&cur->children_processes)) {
     child = list_entry (e, struct child_process, cp_elem);
-    free(child); 
+    //free(child); 
     e = list_next(e);
   }
   //---//

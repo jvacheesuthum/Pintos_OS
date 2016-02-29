@@ -126,6 +126,7 @@ exit (int status, struct intr_frame* f){
   struct child_process *pcp = get_child_process(thread_current()->tid, &parent->children_processes);
   pcp->exit_status = status;
   //---//
+  printf("%s: exit(%i)\n", thread_current()->name, status);
   thread_exit();
 }
 
