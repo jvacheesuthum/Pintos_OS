@@ -16,7 +16,7 @@ static void syscall_handler (struct intr_frame *);
 
 
 static void halt (void);
-void exit (int status, struct intr_frame *f);
+//void exit (int status, struct intr_frame *f);
 static pid_t exec(const char *cmd_line);
 static int wait (pid_t pid);
 static bool create (const char *file, unsigned initial_size);
@@ -57,33 +57,40 @@ syscall_handler (struct intr_frame *f)
   lock_init(&file_lock);
   switch(syscall_name){
     case SYS_EXIT:
+//      printf("%s SYS_EXIT\n", thread_current()->name);
       exit(*(int *) (esp + 4),f);
       break;
     case SYS_WRITE:
+//      printf("%s SYS_WRITE\n", thread_current()->name);
       f->eax = write(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
       break;
     case SYS_HALT:
       halt();
       break;
     case SYS_EXEC:
+//      printf("%s SYS_EXEC\n", thread_current()->name);
       f->eax = exec (*(char **) (esp + 4));
       break;
     case SYS_WAIT:
+//      printf("%s SYS_WAIT\n", thread_current()->name);
       f->eax = wait (* (int *)(esp + 4));
       break;
     case SYS_CREATE:
+//      printf("%s SYS_CREATE\n", thread_current()->name);
       f->eax = create(*(char **) (esp + 4), *(unsigned *) (esp + 4*2));
       break;
     case SYS_REMOVE:
       f->eax = remove(*(char **) (esp + 4),f);
       break;
     case SYS_OPEN:
+ //     printf("%s SYS_OPEN\n", thread_current()->name);
       f->eax = open(*(char **) (esp + 4*1));
       break;
     case SYS_FILESIZE:
       f->eax = filesize(*(int *) (esp + 4)); 
       break;
     case SYS_READ:
+ //     printf("%s SYS_READ\n", thread_current()->name);
       f->eax = read(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
       break;
     case SYS_SEEK:
@@ -93,6 +100,7 @@ syscall_handler (struct intr_frame *f)
       f->eax = tell(*(int *)(esp + 4), f);
       break;
     case SYS_CLOSE:
+//      printf("%s SYS_CLOSE\n", thread_current()->name);
       close(*(int *) (esp + 4), f); 
       break;
 
@@ -116,6 +124,7 @@ exec(const char *cmd_line){
   //deny writes to this file is in start_process and process_exit
   //taking pid as tid, both are ints
   return (pid_t) pid;  
+//  return -1;
 }
 
 void
@@ -176,10 +185,12 @@ read (int fd, void *buffer, unsigned size)
   struct file_map *file_map;
   switch(fd) {
     case 0:
+      lock_acquire(&file_lock);
       while (count != size) {
         *(uint8_t *)(buffer + count) = input_getc();
         count++;
       }
+      lock_release(&file_lock);
       return count;
     case 1:
       return -1;
@@ -282,6 +293,7 @@ close (int fd, struct intr_frame* f) {
   lock_acquire(&file_lock);
   list_remove(&map-> elem);
   file_close(map-> filename);
+  free(map);
   //might have to free the file/inode ????
   lock_release(&file_lock);
 }
