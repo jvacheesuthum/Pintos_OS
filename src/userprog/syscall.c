@@ -29,8 +29,8 @@ static void seek (int fd, unsigned position, struct intr_frame *f);
 static unsigned tell (int fd, struct intr_frame *f);
 static void close (int fd, struct intr_frame *f);
 struct file_map* get_file_map(int fd); 
+struct lock file_lock; 
 
-static struct lock file_lock;   //lock for manipulating files in process
 
 void
 syscall_init (void) 
@@ -54,7 +54,7 @@ syscall_handler (struct intr_frame *f)
   }
   int syscall_name = *(int *)esp;
   if (syscall_name < SYS_HALT || syscall_name > SYS_INUMBER) exit(-1, f);
-  lock_init(&file_lock);
+  //lock_init(&file_lock);
   switch(syscall_name){
     case SYS_EXIT:
 //      printf("%s SYS_EXIT\n", thread_current()->name);
@@ -118,9 +118,9 @@ halt(void){
 
 static pid_t
 exec(const char *cmd_line){
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   tid_t pid = process_execute(cmd_line);
-  lock_release(&file_lock);
+  //lock_releasopene(&file_lock);
   //deny writes to this file is in start_process and process_exit
   //taking pid as tid, both are ints
   return (pid_t) pid;  
@@ -252,7 +252,6 @@ open (const char *file) {
   struct file* opening = filesys_open(file); 
   lock_release(&file_lock);
   if (opening == NULL){
-//    exit(-1, NULL);<----dont know whyyyyyy but it passed two more test
     return -1;
   }    
   //map the opening file to an available fd (not 0 or 1) and returns fd

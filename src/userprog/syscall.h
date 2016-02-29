@@ -6,6 +6,7 @@
 
 void syscall_init (void);
 void exit (int, struct intr_frame *);
+extern struct lock file_lock;   //lock for manipulating files in process
 
 typedef int pid_t;
 struct file_map             //use to map fd to the real pointer to file for read/write

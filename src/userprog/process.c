@@ -50,15 +50,29 @@ process_execute (const char *file_name)
   if (fn_copy2 == NULL) {
     palloc_free_page (fn_copy);
 //    exit(-1, NULL);
-    return TID_ERROR;
-  }
+      return TID_ERROR;
+   }
 //  strlcpy (fn_copy2, file_name, PGSIZE);
   memcpy (fn_copy2, file_name, strlen(file_name) + 1);
   file_name = strtok_r (fn_copy2, " ", &save_ptr);
   //---------------------------------------//
 
   /* Create a new thread to execute FILE_NAME. */
-  if (filesys_open(fn_copy2) == NULL) return TID_ERROR; 
+///  if (filesys_open(fn_copy2) == NULL) return TID_ERROR; 
+  
+  lock_acquire(&file_lock);
+  struct dir *dir = dir_open_root ();
+  struct inode *inode = NULL;
+  if (dir != NULL)
+    dir_lookup (dir, fn_copy2, &inode);
+  else {printf("dir is null");}
+  dir_close (dir);
+  lock_release(&file_lock);
+  
+  if (inode == NULL)
+    return TID_ERROR;
+
+ 
   tid = thread_create (fn_copy2, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR) {
     free (fn_copy2);
@@ -172,11 +186,8 @@ process_wait (tid_t child_tid)
 {
   //---//
   struct thread *child = get_thread(child_tid);
-//  printf("threadcurrent in processwait: tid %i\n",thread_current()->tid);
   struct child_process *cp 
     = get_child_process(child_tid, &thread_current()->children_processes);
- 
-//  printf("%s process_wait  on %s\n", thread_current()->name, child->name);
  
   if(child == NULL && cp == NULL){
     /*invalud tid*/

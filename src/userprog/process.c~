@@ -17,9 +17,12 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
+#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -28,8 +31,11 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
+//  printf("%s process_execute on %s\n", thread_current()->name, file_name);
   char *fn_copy;
-  tid_t tid;
+  tid_t tid = TID_ERROR;
+
+  char *fn_copy2, *save_ptr;
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -37,12 +43,42 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+ 
+  //-----------ARG PASS-------------------//
+  //Get the file name for thread create
+  fn_copy2 = malloc (strlen(file_name) + 1);
+  if (fn_copy2 == NULL) {
+    palloc_free_page (fn_copy);
+//    exit(-1, NULL);
+      return TID_ERROR;
+   }
+//  strlcpy (fn_copy2, file_name, PGSIZE);
+  memcpy (fn_copy2, file_name, strlen(file_name) + 1);
+  file_name = strtok_r (fn_copy2, " ", &save_ptr);
+  //---------------------------------------//
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+///  if (filesys_open(fn_copy2) == NULL) return TID_ERROR; 
+  
+  lock_acquire(&file_lock);
+  struct dir *dir = dir_open_root ();
+  struct inode *inode = NULL;
+  if (dir != NULL)
+    dir_lookup (dir, fn_copy2, &inode);
+  else {printf("dir is null");}
+  lock_release(&file_lock);
+  
+  if (inode == NULL)
+    return TID_ERROR;
 
+ 
+  tid = thread_create (fn_copy2, PRI_DEFAULT, start_process, fn_copy);
+  if (tid == TID_ERROR) {
+    free (fn_copy2);
+    palloc_free_page (fn_copy); 
+  }
+  free(fn_copy2);
+  dir_close (dir);
   return tid;
 }
 
@@ -52,15 +88,15 @@ static void
 start_process (void *file_name_)
 {
   char *file_name = file_name_;
+//  printf("%s starts_process on %s\n", thread_current()->name, file_name);
   struct intr_frame if_;
   bool success;
-
   //------New Implementation-------//
   char *token, *save_ptr;
   int argc, i;
   int *offsets;
   size_t file_name_len;
-  void *start;
+  void *origin;
   //-------------------------------//
 
   /* Initialize interrupt frame and load executable. */
@@ -68,12 +104,14 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
- 
-  //--------New Implementation---------//
- 
+
+  //-------------ARGPASS--------------//
   argc = 0;
   file_name_len = strlen (file_name);
   offsets = (int *) malloc (file_name_len * sizeof(int));
+  if (offsets == NULL) {
+    exit(-1, NULL);
+  }
   offsets[0] = 0;
   for (token = strtok_r (file_name, " ", &save_ptr);
        token != NULL;
@@ -81,26 +119,23 @@ start_process (void *file_name_)
     while (*save_ptr == ' ') save_ptr++;
     argc++;
     offsets[argc] = save_ptr - file_name; 
-  }
-
-  //-----------------------------------//
-
+  }  
+  //-------------------------------------//
   success = load (file_name, &if_.eip, &if_.esp);
-
+  //-------------ARGPASS-----------------//
   if (success) {
     if_.esp -= file_name_len + 1;
-    start = if_.esp;
+    origin = if_.esp;
     memcpy (if_.esp, file_name, file_name_len + 1);
     //round down to a multiple of 4
     if_.esp -= 4 - ((file_name_len + 1) % 4);
 	//0 for arg_list[argc] and word-align
-    *(int *) if_.esp = 0;
     if_.esp -= 4;
     *(int *) if_.esp = 0;
 	//push elem right to left
     for (i = argc - 1; i >= 0; i--) {
       if_.esp -= 4;
-      *(char **) if_.esp = start + offsets[i];
+      *(char **) if_.esp = origin + offsets[i];
     }
 	//argv points to arg_list[0]
     if_.esp -= 4;
@@ -115,9 +150,12 @@ start_process (void *file_name_)
     //this denies write to executable file if success --------------
     thread_current()-> execfile = filesys_open(file_name);
     file_deny_write(thread_current()-> execfile);
+    
+//    sema_up (&thread_current()->wait_sema);
   } 
 
   free (offsets);
+
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
@@ -146,81 +184,71 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
-  /*
-  struct thread *child;
-  int tid_exit_status;
-  struct list children = thread_current() -> children_process;
-
-  struct list_elem* e;
-  struct child_process *cp;
-  e = list_begin (&children);
-  while (e != list_end (&children)) {
-    cp = list_entry (e, struct child_process, elem);
-    if(cp->tid == child_tid){
-      child = cp -> child;
-      tid_exit_status = cp -> exit_status;
-      break;
-    }
-    e = list_next(e);
-  }
-  if(e == list_end(&children) || child-> waited){
-    // 1. invalid tid, child doesn't exist
-    // 2. wait already called on this child
+  //---//
+  struct thread *child = get_thread(child_tid);
+  struct child_process *cp 
+    = get_child_process(child_tid, &thread_current()->children_processes);
+ 
+  if(child == NULL && cp == NULL){
+    /*invalud tid*/
     return -1;
   }
+  if(cp->waited == true){
+    /*process_wait has already been called on it*/
+    return -1;
+  }
+  cp->waited = true;
+  if(child == NULL){
+    /*child thread no longer exist, ie terminated 
+      if terminated by kernel will return -1*/
+    return cp->exit_status;
+  }
+  /*actual waiting*/
+  sema_down(&child->process_wait_sema);
+  return cp->exit_status;
+  //---//
+}
 
-  else if(tid_exit_status == NULL){
-    // actual waiting happens here //
-    child->waited = true;
-    sema_down(&child->wait_sema);  
-    tid_exit_status = cp -> exit_status;
-    return tid_exit_status;
-  }
-  else{
-    return tid_exit_status;
-  }
-  */
-  // minimal implementation of process_wait that doesn't cover conditions in specs //
-  struct thread* child;
-  printf("pointer child: %p\n",child);
+struct child_process*
+get_child_process(tid_t child_tid, struct list *children_list){
   struct list_elem* e;
-  e = list_begin (&thread_current()->children_processes);
-  while (e != list_end (&thread_current()->children_processes)) {
-    child = list_entry (e, struct thread, children_processes_elem);
+  struct child_process* child;
+  e = list_begin (children_list);
+  while (e != list_end (children_list)) {
+    child = list_entry (e, struct child_process, cp_elem);
     if(child->tid == child_tid){
-      break;
+      return child;
     }
     e = list_next(e);
+    
   }
-//  child = get_thread(child_tid); // this doesn't work 
-  printf("pointer child: %p\n",child);
-  child->waited = true;
-  printf("pri: %p \n",(void*)&thread_current()->recent_cpu);
-  printf("pri: %p \n",(void*)&child->recent_cpu);
-  printf("pri: %p \n",(void*)child);
-  printf("before sema down\n");
-  sema_down(&child->wait_sema);
-  printf("after sema down\n");
-  // retreive status from eax //
-  
-  //while(1){};
-  return -99;
-
+  return NULL; 
 }
 
 /* Free the current process's resources. */
 void
 process_exit (void)
 {
+//  printf ("%s exit\n", thread_current()->name); 
   struct thread *cur = thread_current ();
   uint32_t *pd;
-
   //----------Task 2-------------//
-  if (!list_empty(&cur->wait_sema.waiters)) {
-    sema_up(&cur->wait_sema);
+  //---//
+  if (!list_empty(&cur->process_wait_sema.waiters)) {
+    sema_up(&cur->process_wait_sema); //here instead of exit() syscall.c 
+                              //because this also needs to happen at exception
   }
+  //free the child process malloc
+  struct list_elem* e;
+  struct child_process* child;
+  e = list_begin (&cur->children_processes);
+  while (e != list_end (&cur->children_processes)) {
+    child = list_entry (e, struct child_process, cp_elem);
+    e = list_next(e);
+    free((void*)child); 
+  }
+  //---//
   //-----------------------------//
-
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -237,6 +265,11 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+    
+  //allows write to executable file after exit -----
+  if (cur-> execfile != NULL) {
+    file_allow_write(cur-> execfile);
+  }
 }
 
 /* Sets up the CPU for running user code in the current
@@ -560,7 +593,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE - 12;
+        *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
     }
