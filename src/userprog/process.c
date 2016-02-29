@@ -60,14 +60,15 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
 ///  if (filesys_open(fn_copy2) == NULL) return TID_ERROR; 
   
-  lock_acquire(&file_lock);
+  
+  //lock_acquire(&file_lock);
   struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
   if (dir != NULL)
     dir_lookup (dir, fn_copy2, &inode);
   else {printf("dir is null");}
-  dir_close (dir);
-  lock_release(&file_lock);
+  //dir_close (dir);
+  //lock_release(&file_lock);
   
   if (inode == NULL)
     return TID_ERROR;
