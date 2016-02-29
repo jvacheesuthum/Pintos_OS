@@ -165,12 +165,11 @@ process_wait (tid_t child_tid)
 {
   //---//
   struct thread *child = get_thread(child_tid);
+//  printf("threadcurrent in processwait: tid %i\n",thread_current()->tid);
   struct child_process *cp 
     = get_child_process(child_tid, &thread_current()->children_processes);
-
   if(child == NULL && cp == NULL){
     /*invalud tid*/
-    printf("hereee \n");
     return -1;
   }
   if(cp->waited == true){
@@ -200,6 +199,7 @@ get_child_process(tid_t child_tid, struct list *children_list){
       return child;
     }
     e = list_next(e);
+    
   }
   return NULL; 
 }
