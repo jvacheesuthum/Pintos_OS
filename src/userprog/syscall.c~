@@ -118,9 +118,9 @@ halt(void){
 
 static pid_t
 exec(const char *cmd_line){
-  //lock_acquire(&file_lock);
+  lock_acquire(&file_lock);
   tid_t pid = process_execute(cmd_line);
-  //lock_releasopene(&file_lock);
+  lock_releasopene(&file_lock);
   //deny writes to this file is in start_process and process_exit
   //taking pid as tid, both are ints
   return (pid_t) pid;  
@@ -250,13 +250,13 @@ open (const char *file) {
   }
   lock_acquire(&file_lock);
   struct file* opening = filesys_open(file); 
-//  lock_release(&file_lock);
+  lock_release(&file_lock);
   if (opening == NULL){
     return -1;
   }    
   //map the opening file to an available fd (not 0 or 1) and returns fd
   struct file_map* newmap = (struct file_map *) malloc (sizeof(struct file_map));
-//  lock_acquire(&file_lock);
+  lock_acquire(&file_lock);
   int newfile_id = thread_current() -> next_fd;
   thread_current() -> next_fd ++;    //increment next available descriptor
   newmap -> filename = opening;
@@ -293,7 +293,6 @@ close (int fd, struct intr_frame* f) {
   list_remove(&map-> elem);
   file_close(map-> filename);
   free(map);
-  //might have to free the file/inode ????
   lock_release(&file_lock);
 }
     

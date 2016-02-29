@@ -118,9 +118,9 @@ halt(void){
 
 static pid_t
 exec(const char *cmd_line){
-  //lock_acquire(&file_lock);
+  lock_acquire(&file_lock);
   tid_t pid = process_execute(cmd_line);
-  //lock_releasopene(&file_lock);
+  lock_release(&file_lock);
   //deny writes to this file is in start_process and process_exit
   //taking pid as tid, both are ints
   return (pid_t) pid;  
@@ -295,7 +295,6 @@ close (int fd, struct intr_frame* f) {
   list_remove(&map-> elem);
   file_close(map-> filename);
   free(map);
-  //might have to free the file/inode ????
   lock_release(&file_lock);
 }
     
