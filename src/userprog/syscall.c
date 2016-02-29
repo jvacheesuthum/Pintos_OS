@@ -120,7 +120,7 @@ static pid_t
 exec(const char *cmd_line){
   lock_acquire(&file_lock);
   tid_t pid = process_execute(cmd_line);
-  lock_releasopene(&file_lock);
+  lock_release(&file_lock);
   //deny writes to this file is in start_process and process_exit
   //taking pid as tid, both are ints
   return (pid_t) pid;  
