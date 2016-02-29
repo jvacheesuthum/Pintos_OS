@@ -237,9 +237,6 @@ thread_create (const char *name, int priority,
 #ifdef USERPROG
  // task 2//
   // --- //
-//  printf("process create! \n");
-//  printf("t created: %i\n", t->tid);
-//  printf("thread current in create:tid %i\n", (void*)thread_current()->tid);
   t->parent_process = thread_current();
   list_init(&t->children_processes);
   if(thread_current() == initial_thread){
@@ -250,9 +247,7 @@ thread_create (const char *name, int priority,
   struct child_process *cp = (struct child_process *) malloc(sizeof(struct child_process));
   child_process_init(cp, t->tid); 
   
-  //if(thread_current() != initial_thread) { 
-    list_push_back(&(thread_current()->children_processes), &cp->cp_elem);
-  //}
+  list_push_back(&(thread_current()->children_processes), &cp->cp_elem);
   // --- //
   // -- file handling -- //
   list_init(&t->files);

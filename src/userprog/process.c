@@ -223,8 +223,8 @@ process_exit (void)
   e = list_begin (&cur->children_processes);
   while (e != list_end (&cur->children_processes)) {
     child = list_entry (e, struct child_process, cp_elem);
-    //free(child); 
     e = list_next(e);
+    free((void*)child); 
   }
   //---//
   //-----------------------------//
