@@ -18,6 +18,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -30,8 +31,9 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
+//  printf("%s process_execute on %s\n", thread_current()->name, file_name);
   char *fn_copy;
-  tid_t tid;
+  tid_t tid = TID_ERROR;
 
   char *fn_copy2, *save_ptr;
 
@@ -47,7 +49,8 @@ process_execute (const char *file_name)
   fn_copy2 = malloc (strlen(file_name) + 1);
   if (fn_copy2 == NULL) {
     palloc_free_page (fn_copy);
-    exit(-1, NULL);
+//    exit(-1, NULL);
+    return TID_ERROR;
   }
 //  strlcpy (fn_copy2, file_name, PGSIZE);
   memcpy (fn_copy2, file_name, strlen(file_name) + 1);
@@ -55,10 +58,13 @@ process_execute (const char *file_name)
   //---------------------------------------//
 
   /* Create a new thread to execute FILE_NAME. */
+  if (filesys_open(fn_copy2) == NULL) return TID_ERROR; 
   tid = thread_create (fn_copy2, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
+  if (tid == TID_ERROR) {
+    free (fn_copy2);
     palloc_free_page (fn_copy); 
-
+  }
+  free(fn_copy2);
   return tid;
 }
 
@@ -68,6 +74,7 @@ static void
 start_process (void *file_name_)
 {
   char *file_name = file_name_;
+//  printf("%s starts_process on %s\n", thread_current()->name, file_name);
   struct intr_frame if_;
   bool success;
   //------New Implementation-------//
@@ -168,7 +175,9 @@ process_wait (tid_t child_tid)
 //  printf("threadcurrent in processwait: tid %i\n",thread_current()->tid);
   struct child_process *cp 
     = get_child_process(child_tid, &thread_current()->children_processes);
-  
+ 
+//  printf("%s process_wait  on %s\n", thread_current()->name, child->name);
+ 
   if(child == NULL && cp == NULL){
     /*invalud tid*/
     return -1;
@@ -209,6 +218,7 @@ get_child_process(tid_t child_tid, struct list *children_list){
 void
 process_exit (void)
 {
+//  printf ("%s exit\n", thread_current()->name); 
   struct thread *cur = thread_current ();
   uint32_t *pd;
   //----------Task 2-------------//
@@ -223,7 +233,7 @@ process_exit (void)
   e = list_begin (&cur->children_processes);
   while (e != list_end (&cur->children_processes)) {
     child = list_entry (e, struct child_process, cp_elem);
-    //free(child); 
+//    free(child); 
     e = list_next(e);
   }
   //---//

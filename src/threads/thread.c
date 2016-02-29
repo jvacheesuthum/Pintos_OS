@@ -74,6 +74,7 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 void thread_yield(void);
+void child_process_init(struct child_process* cp, tid_t tid);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -620,7 +621,6 @@ static void
 kernel_thread (thread_func *function, void *aux) 
 {
   ASSERT (function != NULL);
-
   intr_enable ();       /* The scheduler runs with interrupts off. */
   function (aux);       /* Execute the thread function. */
   thread_exit ();       /* If function() returns, kill the thread. */

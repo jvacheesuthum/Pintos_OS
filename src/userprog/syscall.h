@@ -2,8 +2,10 @@
 #define USERPROG_SYSCALL_H
 
 #include <list.h>
+#include "threads/interrupt.h"
 
 void syscall_init (void);
+void exit (int, struct intr_frame *);
 
 typedef int pid_t;
 struct file_map             //use to map fd to the real pointer to file for read/write
