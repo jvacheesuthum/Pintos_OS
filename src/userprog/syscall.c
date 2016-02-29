@@ -152,7 +152,10 @@ create (const char *file, unsigned initial_size)
     exit(-1, NULL);
     return NULL;
   };
-  return filesys_create(file, initial_size);
+  lock_acquire(&file_lock);
+  bool result = filesys_create(file, initial_size);
+  lock_release(&file_lock);
+  return result;
 }
 
 static bool
@@ -245,7 +248,6 @@ write (int fd, const void *buffer, unsigned size) {
 static int
 open (const char *file) {
   if (file == NULL) {
-//    exit(-1, NULL);
     return -1;
   }
   lock_acquire(&file_lock);

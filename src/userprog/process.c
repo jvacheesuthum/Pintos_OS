@@ -59,6 +59,7 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
 ///  if (filesys_open(fn_copy2) == NULL) return TID_ERROR; 
+
   
   lock_acquire(&file_lock);
   struct dir *dir = dir_open_root ();
@@ -148,7 +149,9 @@ start_process (void *file_name_)
     *(int *)if_.esp = 0;
     
     //this denies write to executable file if success --------------
+  lock_acquire(&file_lock);
     thread_current()-> execfile = filesys_open(file_name);
+  lock_release(&file_lock);
     file_deny_write(thread_current()-> execfile);
     
 //    sema_up (&thread_current()->wait_sema);
@@ -378,7 +381,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
+  
+  lock_acquire(&file_lock);
   file = filesys_open (file_name);
+  lock_release(&file_lock);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
