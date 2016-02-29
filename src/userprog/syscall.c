@@ -118,6 +118,7 @@ halt(void){
 
 static pid_t
 exec(const char *cmd_line){
+  /*process_execute does synchronisation, so don't need a lock here*/
   tid_t pid = process_execute(cmd_line);
   //deny writes to this file is in start_process and process_exit
   //taking pid as tid, both are ints
