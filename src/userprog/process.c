@@ -31,7 +31,6 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
-//  printf("%s process_execute on %s\n", thread_current()->name, file_name);
   char *fn_copy;
   tid_t tid = TID_ERROR;
 
@@ -44,12 +43,11 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
  
-  //-----------ARG PASS-------------------//
+  //-----------ARGPASS-------------------//
   //Get the file name for thread create
   fn_copy2 = malloc (strlen(file_name) + 1);
   if (fn_copy2 == NULL) {
     palloc_free_page (fn_copy);
-//    exit(-1, NULL);
       return TID_ERROR;
    }
 //  strlcpy (fn_copy2, file_name, PGSIZE);
@@ -58,16 +56,15 @@ process_execute (const char *file_name)
   //---------------------------------------//
 
   /* Create a new thread to execute FILE_NAME. */
-///  if (filesys_open(fn_copy2) == NULL) return TID_ERROR; 
   
-  //lock_acquire(&file_lock);
+  lock_acquire(&file_lock);
   struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
   if (dir != NULL)
     dir_lookup (dir, fn_copy2, &inode);
   else {printf("dir is null");}
-  //dir_close (dir);
-  //lock_release(&file_lock);
+  dir_close (dir);
+  lock_release(&file_lock);
   
   if (inode == NULL) {
     free (fn_copy2);
@@ -88,15 +85,15 @@ static void
 start_process (void *file_name_)
 {
   char *file_name = file_name_;
-//  printf("%s starts_process on %s\n", thread_current()->name, file_name);
   struct intr_frame if_;
   bool success;
-  //------New Implementation-------//
-  char *token, *save_ptr;
-  int argc, i;
-  int *offsets;
+
+  //------ARGPASS-------//
+  char *token, *save_ptr;//pointers for tokenization
+  int argc, i; //argument counts
+  int *offsets; //array of offsets
   size_t file_name_len;
-  void *origin;
+  void *origin; //stack pointer saved before pushing args in order
   //-------------------------------//
 
   /* Initialize interrupt frame and load executable. */
@@ -108,15 +105,19 @@ start_process (void *file_name_)
   //-------------ARGPASS--------------//
   argc = 0;
   file_name_len = strlen (file_name);
+  //check for stack overflow
   if (file_name_len > MAX_ARG_SIZE && 
       is_user_vaddr (if_.esp - file_name_len)) {
     printf("Arguments/File name too long\n");
     exit(RET_ERROR, NULL);
   }
+  //allocate memory of array of offsets
   offsets = (int *) malloc (file_name_len * sizeof(int));
   if (offsets == NULL) {
     exit(RET_ERROR, NULL);
   }
+ 
+  //calculate the offsets and argument count
   offsets[0] = 0;
   for (token = strtok_r (file_name, " ", &save_ptr);
        token != NULL;
@@ -140,24 +141,26 @@ start_process (void *file_name_)
     //0 for arg_list[argc] and word-align
     if_.esp -= INSTR_SIZE;
     *(int *) if_.esp = 0;
-	//push elem right to left
-
+   
+    //push elem right to left
     for (i = argc - 1; i >= 0; i--) {
       if_.esp -= INSTR_SIZE;
       *(char **) if_.esp = origin + offsets[i];
     }
-	//argv points to arg_list[0]
+    //argv points to arg_list[0]
     if_.esp -= INSTR_SIZE;
     *(char **) if_.esp = if_.esp + INSTR_SIZE;
-	//pushing argc
+    //pushing argc
     if_.esp -= INSTR_SIZE;
     *(int *)if_.esp = argc;
-	//fake return addr
+    //return addr
     if_.esp -= INSTR_SIZE;
     *(int *)if_.esp = 0;
     
     //this denies write to executable file if success --------------
+    lock_acquire(&file_lock);
     thread_current()-> execfile = filesys_open(file_name);
+    lock_release(&file_lock);
     file_deny_write(thread_current()-> execfile);
   } 
 
@@ -191,13 +194,12 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
-  //---//
   struct thread *child = get_thread(child_tid);
   struct child_process *cp 
     = get_child_process(child_tid, &thread_current()->children_processes);
  
   if(child == NULL && cp == NULL){
-    /*invalud tid*/
+    /*invalid tid*/
     return RET_ERROR;
   }
   if(cp->waited == true){
@@ -213,7 +215,6 @@ process_wait (tid_t child_tid)
   /*actual waiting*/
   sema_down(&child->process_wait_sema);
   return cp->exit_status;
-  //---//
 }
 
 struct child_process*
@@ -236,15 +237,13 @@ get_child_process(tid_t child_tid, struct list *children_list){
 void
 process_exit (void)
 {
-//  printf ("%s exit\n", thread_current()->name); 
   struct thread *cur = thread_current ();
   uint32_t *pd;
   //----------Task 2-------------//
-  //---//
   if (!list_empty(&cur->process_wait_sema.waiters)) {
-    sema_up(&cur->process_wait_sema); //here instead of exit() syscall.c 
-                              //because this also needs to happen at exception
+    sema_up(&cur->process_wait_sema);  
   }
+
   //free the child process malloc
   struct list_elem* e;
   struct child_process* child;
@@ -262,8 +261,6 @@ process_exit (void)
     free(fm);
   }
 
-  //---//
-  //-----------------------------//
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -393,7 +390,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
+  
+  lock_acquire(&file_lock);
   file = filesys_open (file_name);
+  lock_release(&file_lock);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);

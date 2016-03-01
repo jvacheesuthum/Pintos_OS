@@ -103,11 +103,11 @@ syscall_handler (struct intr_frame *f)
       close(*(int *) (esp + INSTR_SIZE), f); 
       break;
 
-    default: // original code*/
+    default:
       break;
   }
 }
-  //------- write your methods here --------//
+
 static void
 halt(void){
   shutdown_power_off();
@@ -115,9 +115,8 @@ halt(void){
 
 static pid_t
 exec(const char *cmd_line){
-  lock_acquire(&file_lock);
+  /*process_execute does synchronisation, so don't need a lock here*/
   tid_t pid = process_execute(cmd_line);
-  lock_release(&file_lock);
   //deny writes to this file is in start_process and process_exit
   //taking pid as tid, both are ints
   return (pid_t) pid;  
@@ -126,11 +125,10 @@ exec(const char *cmd_line){
 void
 exit (int status, struct intr_frame* f){
   if(f != NULL) f->eax = status;
-  //---//
   struct thread *parent = thread_current()->parent_process;
   struct child_process *pcp = get_child_process(thread_current()->tid, &parent->children_processes);
   pcp->exit_status = status;
-  //---//
+
   printf("%s: exit(%i)\n", thread_current()->name, status);
   thread_exit();
 }
@@ -144,8 +142,12 @@ wait (pid_t pid){
 static bool 
 create (const char *file, unsigned initial_size)
 {
-  if (file == NULL) exit(RET_ERROR, NULL);
-  return filesys_create(file, initial_size);
+  if (file == NULL) exit(-1, NULL);
+  
+  lock_acquire(&file_lock);
+  bool result = filesys_create(file, initial_size);
+  lock_release(&file_lock);
+  return result;
 }
 
 static bool
@@ -170,6 +172,7 @@ filesize(int fd) {
 static int 
 read (int fd, void *buffer, unsigned size)
 {
+  //check if in user addr space
   if (!is_user_vaddr (buffer) || 
       !is_user_vaddr (buffer + size)) {
     exit(RET_ERROR, NULL);
@@ -177,7 +180,7 @@ read (int fd, void *buffer, unsigned size)
   unsigned count = 0;
   struct file_map *file_map;
   switch(fd) {
-    case 0:
+    case 0://stdin
       lock_acquire(&file_lock);
       while (count != size) {
         *(uint8_t *)(buffer + count) = input_getc();
@@ -187,7 +190,7 @@ read (int fd, void *buffer, unsigned size)
       return count;
     case 1:
       return RET_ERROR;
-    default:
+    default: //read from file
       file_map = get_file_map(fd);
       if (file_map == NULL) {
         return RET_ERROR;
@@ -214,10 +217,10 @@ write (int fd, const void *buffer, unsigned size) {
   struct file_map* target;
   switch(fd){
     case 0 :
-      return RET_ERROR;              //fd 0 is standard in, cannot be written
-    case 1 : 			//write to sys console
+      return RET_ERROR;  //fd 0 is standard in, cannot be written
+    case 1 : //write to sys console
 	maxbufout = 300;
-	if (size > maxbufout) { 	//break up large buffer (>300 bytes for now)
+	if (size > maxbufout) { //break up large buffer (>300 bytes for now)
 	  unsigned wsize = size;
 	  char* temp;
 	  while (wsize > maxbufout) {
@@ -257,7 +260,8 @@ open (const char *file) {
   thread_current() -> next_fd ++;    //increment next available descriptor
   newmap -> filename = opening;
   newmap -> file_id = newfile_id; 
-  list_push_back(&thread_current()-> files, &newmap-> elem); //put this fd-file map into list in struct thread
+  list_push_back(&thread_current()-> files, &newmap-> elem);
+  //put this fd-file map into list in struct thread
   lock_release(&file_lock);
   return newfile_id;
 }
