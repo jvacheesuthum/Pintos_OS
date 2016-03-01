@@ -219,6 +219,15 @@ they are freed at the termination of their parent's process in process_exit().
 >> paragraph, describe the strategy or strategies you adopted for
 >> managing these issues.
 
+To manage access to user memory, our strategy is to prioritise safety and validity.
+All pointers are checked before the actual function of the syscall is executed.
+At the syscall handler level, the stack pointer is checked. 
+At every case of the syscall handler, we check every argument that is being passed.
+If it is invalid in any way, we exit with error without processing the actually syscall.
+Hence error-handling is done before the primary function of the code is executed, and any 'bad' code is simply discarded while exiting with an error.
+As we detect errors in invalid pointers before actually executing the syscall, the 'bad' syscall has not yet been allocated any resources.
+No locks, buffers and memory space has to be freed at the point when we detect an error. Therefore it is very safe.
+
 ---- SYNCHRONIZATION ----
 
 >> B7: (5 marks)
@@ -267,6 +276,13 @@ but C will still be running uneffected.
 >> B9: (5 marks)
 >> Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
+
+We chose to implement access to user memory by first verifying the validity of the user-provided pointer, then dereferencing it.
+Syscall handler checks the stack pointer before handing the arguments to different syscall cases.
+We modified pagedir_get_page(), so that NULL is returned if the pointer is NULL, the address is not a user address, or it is unmapped.
+If NULL is returned, the syscall handler exits with error immediately, before the actual syscall is executed.
+This method prevents unnecessary allocation of resources to syscalls that will ultimately fail. Hence it also helps prevents memory leak, 
+as no locks, buffers, etc, are acquired by the process. 
 
 >> B10: (5 marks)
 >> What advantages or disadvantages can you see to your design
