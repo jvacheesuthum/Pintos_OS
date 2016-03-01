@@ -197,22 +197,28 @@ process_wait (tid_t child_tid)
   struct thread *child = get_thread(child_tid);
   struct child_process *cp 
     = get_child_process(child_tid, &thread_current()->children_processes);
- 
   if(cp == NULL){
     /*invalid tid*/
     return RET_ERROR;
   }
+  
+  lock_acquire(&cp->cp_wait_lock);
+
   if(cp->waited == true){
     /*process_wait has already been called on it*/
+    lock_release(&cp->cp_wait_lock);
     return RET_ERROR;
   }
   cp->waited = true;
   if(child == NULL){
     /*child thread no longer exist, ie terminated 
       if terminated by kernel will return -1*/
+    lock_release(&cp->cp_wait_lock);
     return cp->exit_status;
   }
   /*actual waiting*/
+  lock_release(&cp->cp_wait_lock);
+  
   sema_down(&child->process_wait_sema);
   return cp->exit_status;
 }

@@ -264,6 +264,7 @@ thread_create (const char *name, int priority,
 void child_process_init(struct child_process* cp, tid_t tid){
   cp->tid = tid;
   cp->waited = false;
+  lock_init(&cp->cp_wait_lock);
   cp->exit_status = -1;     // set default as -1 becuase any termination other than with exit() will cause status -1
 }
 #endif
