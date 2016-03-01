@@ -173,6 +173,16 @@ Every memory access in read and write system calls ensures that the address is i
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
+For any system call, we call pagedir_get_page once to get the stack pointer.
+For read and write system calls, we call pagedir_get_page another 3 times to check the 3 pointers to the arguments, including the fd, pointer to buffer and size.
+We also check the end of the buffer with pagedir_get page.
+Therefore in total the least possible number of inspections of the page table is 5 times.
+If the data spans only one page, then we should only check the page table once instead of twice for the buffer.
+It does not matter if the data is 4096 bytes or 2 bytes. If the data is over two pages then we will have to check twice.
+The only improvement is not to check the buffer at all, if there are any other errors.
+At the moment we check the stack pointer first, and if it is invalid we do not proceed to check anything else.
+
+
 >> B5: (8 marks)
 >> Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
@@ -285,10 +295,11 @@ but C will still be running uneffected.
 >> kernel in the way that you did?
 
 We chose to implement access to user memory by first verifying the validity of the user-provided pointer, then dereferencing it.
-Syscall handler checks the stack pointer before handing the arguments to different syscall cases.
+Syscall handler checks the stack pointer before switching to different syscall cases.
 We modified pagedir_get_page(), so that NULL is returned if the pointer is NULL, the address is not a user address, or it is unmapped.
 If NULL is returned, the syscall handler exits with error immediately, before the actual syscall is executed.
-This method prevents unnecessary allocation of resources to syscalls that will ultimately fail. Hence it also helps prevents memory leak, 
+Then at each syscall case, we check the pointers for the arguments with pagedir_get_page() before calling the code to execute the specified syscall.
+This method prevents unnecessary allocation of resources to syscalls that will ultimately fail. Hence it also helps to prevent memory leak, 
 as no locks, buffers, etc, are acquired by the process. 
 
 >> B10: (5 marks)
