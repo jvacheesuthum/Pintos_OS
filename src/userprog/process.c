@@ -198,7 +198,7 @@ process_wait (tid_t child_tid)
   struct child_process *cp 
     = get_child_process(child_tid, &thread_current()->children_processes);
  
-  if(child == NULL && cp == NULL){
+  if(cp == NULL){
     /*invalid tid*/
     return RET_ERROR;
   }
