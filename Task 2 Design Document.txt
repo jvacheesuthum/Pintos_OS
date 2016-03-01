@@ -133,12 +133,19 @@ extern struct lock file_lock;:
 typedef int pid_t;
 struct file_map             //use to map fd to the real pointer to file for read/write
 {
-  struct list_elem elem;     //to store in list -> in struct thread
-  struct file* filename;    //pointer to the file
-  int file_id;              //fd of the open file - cannot be 0 or 1
+  struct list_elem elem;     
+  struct file* filename;    
+  int file_id;              
 };
-  Struct to map an open file to a file descriptor and store in a list in each thread. 
-
+  
+struct file_map:
+  Struct to map an open file to a file descriptor and store in a list in each thread
+struct list_elem elem:
+  To store in list in struct thread
+struct file* filename:
+  The pointer to the file opening
+int file_id:
+  File descriptor allocated to the open file - cannot be 0 or 1
 
 
 >> B2: (5 marks)
