@@ -76,6 +76,25 @@ process_execute (const char *file_name)
     palloc_free_page (fn_copy); 
   }
   free(fn_copy2);
+  struct thread* t = get_thread(tid);
+  sema_down(&t->process_wait_sema);
+ //-----------------------------------
+//  struct thread *tc = thread_current();
+//  struct list_elem *e;
+//  struct child_process* thiscp= NULL;
+/*  
+  for (e = list_begin(&tc->children_processes); e != list_end (&tc->children_processes); e = list_next(e)) {
+    struct child_process *chp = list_entry (e, struct child_process, cp_elem);
+    if (chp->tid == tid) {
+      thiscp = chp;
+    }
+  }
+*/
+  struct child_process *chp = get_child_process(tid,&thread_current()->children_processes);
+  if (chp-> exit_status == -1){
+    tid = TID_ERROR;
+  }
+//---------------------------------
   return tid;
 }
 
@@ -156,7 +175,8 @@ start_process (void *file_name_)
     //return addr
     if_.esp -= INSTR_SIZE;
     *(int *)if_.esp = 0;
-    
+  
+     
     //this denies write to executable file if success --------------
     lock_acquire(&file_lock);
     thread_current()-> execfile = filesys_open(file_name);
@@ -179,7 +199,7 @@ start_process (void *file_name_)
      and jump to it. */
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
-
+  sema_up(&thread_current()-> process_wait_sema); 
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
@@ -197,22 +217,28 @@ process_wait (tid_t child_tid)
   struct thread *child = get_thread(child_tid);
   struct child_process *cp 
     = get_child_process(child_tid, &thread_current()->children_processes);
- 
-  if(child == NULL && cp == NULL){
+  if(cp == NULL){
     /*invalid tid*/
     return RET_ERROR;
   }
+  
+  lock_acquire(&cp->cp_wait_lock);
+
   if(cp->waited == true){
     /*process_wait has already been called on it*/
+    lock_release(&cp->cp_wait_lock);
     return RET_ERROR;
   }
   cp->waited = true;
   if(child == NULL){
     /*child thread no longer exist, ie terminated 
       if terminated by kernel will return -1*/
+    lock_release(&cp->cp_wait_lock);
     return cp->exit_status;
   }
   /*actual waiting*/
+  lock_release(&cp->cp_wait_lock);
+  
   sema_down(&child->process_wait_sema);
   return cp->exit_status;
 }
