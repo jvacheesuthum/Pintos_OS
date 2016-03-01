@@ -253,8 +253,10 @@ open (const char *file) {
 
   //map the opening file to an available fd (not 0 or 1) and returns fd
   struct file_map* newmap = (struct file_map *) malloc (sizeof(struct file_map));
-  if (newmap == NULL) return RET_ERROR;
-
+  if (newmap == NULL){
+     free(newmap);
+     return RET_ERROR;
+  }
   lock_acquire(&file_lock);
   int newfile_id = thread_current() -> next_fd;
   thread_current() -> next_fd ++;    //increment next available descriptor
