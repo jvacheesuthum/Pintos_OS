@@ -3,6 +3,10 @@
 
 #include "threads/thread.h"
 
+#define INSTR_SIZE 4                       /* Instruction Size 4 bytes */
+#define RET_ERROR -1                     
+#define MAX_ARG_SIZE 128		   /* Maximum input size */  
+
 tid_t process_execute (const char *file_name);
 int process_wait (tid_t);
 void process_exit (void);

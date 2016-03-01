@@ -60,7 +60,6 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
 ///  if (filesys_open(fn_copy2) == NULL) return TID_ERROR; 
   
-  
   //lock_acquire(&file_lock);
   struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
@@ -70,13 +69,13 @@ process_execute (const char *file_name)
   //dir_close (dir);
   //lock_release(&file_lock);
   
-  if (inode == NULL)
+  if (inode == NULL) {
+    free (fn_copy2);
+    palloc_free_page (fn_copy); 
     return TID_ERROR;
-
- 
+  }
   tid = thread_create (fn_copy2, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR) {
-    free (fn_copy2);
     palloc_free_page (fn_copy); 
   }
   free(fn_copy2);
@@ -109,9 +108,14 @@ start_process (void *file_name_)
   //-------------ARGPASS--------------//
   argc = 0;
   file_name_len = strlen (file_name);
+  if (file_name_len > MAX_ARG_SIZE && 
+      is_user_vaddr (if_.esp - file_name_len)) {
+    printf("Arguments/File name too long\n");
+    exit(RET_ERROR, NULL);
+  }
   offsets = (int *) malloc (file_name_len * sizeof(int));
   if (offsets == NULL) {
-    exit(-1, NULL);
+    exit(RET_ERROR, NULL);
   }
   offsets[0] = 0;
   for (token = strtok_r (file_name, " ", &save_ptr);
@@ -124,35 +128,37 @@ start_process (void *file_name_)
   //-------------------------------------//
   success = load (file_name, &if_.eip, &if_.esp);
   //-------------ARGPASS-----------------//
+
   if (success) {
     if_.esp -= file_name_len + 1;
     origin = if_.esp;
     memcpy (if_.esp, file_name, file_name_len + 1);
+
     //round down to a multiple of 4
-    if_.esp -= 4 - ((file_name_len + 1) % 4);
-	//0 for arg_list[argc] and word-align
-    if_.esp -= 4;
+    if_.esp -= INSTR_SIZE - ((file_name_len + 1) % INSTR_SIZE);
+
+    //0 for arg_list[argc] and word-align
+    if_.esp -= INSTR_SIZE;
     *(int *) if_.esp = 0;
 	//push elem right to left
+
     for (i = argc - 1; i >= 0; i--) {
-      if_.esp -= 4;
+      if_.esp -= INSTR_SIZE;
       *(char **) if_.esp = origin + offsets[i];
     }
 	//argv points to arg_list[0]
-    if_.esp -= 4;
-    *(char **) if_.esp = if_.esp + 4;
+    if_.esp -= INSTR_SIZE;
+    *(char **) if_.esp = if_.esp + INSTR_SIZE;
 	//pushing argc
-    if_.esp -= 4;
+    if_.esp -= INSTR_SIZE;
     *(int *)if_.esp = argc;
 	//fake return addr
-    if_.esp -= 4;
+    if_.esp -= INSTR_SIZE;
     *(int *)if_.esp = 0;
     
     //this denies write to executable file if success --------------
     thread_current()-> execfile = filesys_open(file_name);
     file_deny_write(thread_current()-> execfile);
-    
-//    sema_up (&thread_current()->wait_sema);
   } 
 
   free (offsets);
@@ -192,11 +198,11 @@ process_wait (tid_t child_tid)
  
   if(child == NULL && cp == NULL){
     /*invalud tid*/
-    return -1;
+    return RET_ERROR;
   }
   if(cp->waited == true){
     /*process_wait has already been called on it*/
-    return -1;
+    return RET_ERROR;
   }
   cp->waited = true;
   if(child == NULL){
@@ -248,6 +254,14 @@ process_exit (void)
     e = list_next(e);
     free((void*)child); 
   }
+
+  e = list_begin (&cur->files);
+  while (e != list_end (&cur->files)) {
+    struct file_map *fm = list_entry (e, struct file_map, elem);
+    e = list_next(e);
+    free(fm);
+  }
+
   //---//
   //-----------------------------//
   /* Destroy the current process's page directory and switch back
@@ -288,7 +302,7 @@ process_activate (void)
      interrupts. */
   tss_update ();
 }
-
+
 /* We load ELF binaries.  The following definitions are taken
    from the ELF specification, [ELF1], more-or-less verbatim.  */
 
