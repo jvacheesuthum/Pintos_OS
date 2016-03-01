@@ -73,16 +73,90 @@ Separating the commands in the shell also allows multiple commands to be written
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+In thread.h:
+
+struct child_process{
+  tid_t tid;
+  int exit_status;
+  bool waited;  
+  struct lock cp_wait_lock;
+  struct list_elem cp_elem; 
+};
+
+struct child_process: 
+  This struct is used for containing and saving the information about the tid and exit status of each children of a process.
+tid_t tid:
+  Stores the pid of the process a child_process struct represents.
+int exit_status:
+  Stores the exit status of the process a child_process struct represents.
+bool waited:
+  Indicates if process_wait() has been called on the process this child_process struct represents.
+struct lock cp_wait_lock:
+  For synchronization in process_wait() function
+struct list_elem cp_elem:
+  Used to store this struct in a list children_processes inside struct thread.
+
+struct thread{
+          .
+          .
+          .
+    struct thread *parent_process;        
+    struct list children_processes;
+    struct semaphore process_wait_sema;
+
+    struct list files;                   //list of open files in user program
+    int next_fd;                        //next available fd for opening files in user program
+    struct file *execfile;
+          .
+          .
+          .
+};
+
+struct thread *parent_process:
+  Reference to the parent of a process.
+struct list children_processes:
+  A list of child_process struct, used in process_wait() to retreive exit statuses of process's children.
+struct semaphore process_wait_sema:
+  A semaphore to carry out the waiting for a child process, initialised with value 0.
+struct list files:
+  A list of maps for file descriptor and file pointer for open files in each process
+int next_fd:
+  Available file descriptor number for use to map file pointer.
+struct file *execfile:
+  Pointer to the file that is being executed, to deny writes to the file.
+
+In syscall.h:
+
+extern struct lock file_lock;:
+  A lock to synchronize files manipulation.
+
+typedef int pid_t;
+struct file_map             //use to map fd to the real pointer to file for read/write
+{
+  struct list_elem elem;     //to store in list -> in struct thread
+  struct file* filename;    //pointer to the file
+  int file_id;              //fd of the open file - cannot be 0 or 1
+};
+  Struct to map an open file to a file descriptor and store in a list in each thread. 
+
+
+
 >> B2: (5 marks)
 >> Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
+
+Every system call to open a file will allocate a file descriptor, an int > 1. When passing open file in system calls this descriptor is passed instead of passing file pointer. The system call will then look up the matching file from the descriptor passed when it needs to access the file.
+
+This number is unique for EACH PROCESS in user program. A thread keeps track of a list of a struct which maps an open file to its file descriptor (struct file_map in syscall.h). A counter is maintained in each thread to ensure no 2 files occupy the same descriptor. Different processes can use same file descriptor to point to different files, the will not interfere with each other. 
 
 ---- ALGORITHMS ----
 
 >> B3: (5 marks)
 >> Describe your code for reading and writing user data from the
 >> kernel.
+
+Every memory access in read and write system calls ensures that the address is in user space, kills the current process and exits with failure otherwise. This is done by check with is_user_vaddr function. It checks whether the address provide is below the PHYS_BASE or not and is called twice to check the start as well as the end of the buffer.
 
 >> B4: (5 marks)
 >> Suppose a system call causes a full page (4,096 bytes) of data
@@ -95,6 +169,40 @@ Separating the commands in the shell also allows multiple commands to be written
 >> B5: (8 marks)
 >> Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
+
+The wait system call calls process_wait() with the given pid as an argument.
+The function process_wait() carries out checks for: 1st if the given pid is 
+valid, 2nd if wait has already been called on the given pid.
+
+1st check: It calls get_thread(pid), which will look for the struct thread* 
+with tid equals to the given pid in the all_elem list. It also calls 
+get_child_process() which does a similar thing but on a children_processes list.
+This is needed because if a process has already been terminated, it will not 
+be in the all_elem list, but there will be a child_process recorded in the 
+children_processes list.  
+2nd check: It looks at the 'waited' variable in the child_process struct that it
+got from get_child_process() function in the 1st check. 
+
+If the function goes through these two tests, it will set the 'waited' 
+variable in the child_process struct to true, so that the next time
+process_wait() is called on this pid, it would fail the second check. 
+Then it needs to check if the child process has already been terminated. 
+This is done by seeing the result of get_thread() function in the first check.
+If the process has been terminated, we can return the exit status stored in the 
+child_process struct we got from get_child_process(). If the process has not 
+been terminated, the function will call sema_down() on the child thread's 
+wait_sema (which has been initialised with seam value zero at thread create).
+The sema_up() call to this semaphore will be called at process_exit() function
+which is called everytime the process terminates. If it exits with exit system
+call, it would updates the exit status in the corresponding child_process struct 
+first, so that when the waiting parent wakes up it could retreive correct 
+exit status and return. If process terminates by something other than the exit 
+system call, exit status will not get updated and the waiting parent would 
+retreive the default exit status of -1 and return.  
+
+The child_process structs are malloc'd at proess creation in thread_create(), and 
+they are freed at the termination of their parent's process in process_exit().
+
 
 >> B6: (5 marks)
 >> Any access to user program memory at a user-specified address
@@ -119,6 +227,8 @@ Separating the commands in the shell also allows multiple commands to be written
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
 
+In calls to process_execute, we 'down' a semaphore after a child process is spawn. When the child process is done with loading it calls 'up' to this semaphore to make sure it finishes loading before exec returns. Calls to process_execute also check the "exit status" of children process and returns corresponding error code if the child fails to load.
+
 >> B8: (5 marks)
 >> Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
@@ -126,6 +236,31 @@ Separating the commands in the shell also allows multiple commands to be written
 >> that all resources are freed in each case?  How about when P
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
+
+The wait system call directly calls process_wait() in our design. 
+
+For when P calls wait(C) before and after C exits:
+There is a lock in each child_process struct. Every process_wait() call will
+find the child_process struct with the argument pid. Once that struct is found,
+it acquires the lock, so that multiple wait called on the same pid at the same
+time will not race. Before it exits from any special cases like calling wait on 
+a pid that wait has already been called on, or calling wait on a process that has
+already exited, it would release this lock before returning error code 
+so that other wait system call can be called on this process. If process_
+wait() does not go into any of the special cases, this means that it is 
+called on a child process that is still running. If this is the case, it 
+would also release the lock, before doing sema_down on the child's wait_sema, so 
+that another process_wait() can be called with the same pid while the parent is already waiting for it.  
+
+All resources are freed in all cases because at every termination of a child 
+process, process_exit() is called, which frees all resources that process has
+taken and also does sema_up on its wait_sema, allowing the waiting parent to 
+continue running its code. 
+
+When P terminates before C exits, all resources used for storing child_process 
+struct in the P's children_processes list would be freed. This would not affect 
+the execution of C becuase only the child_process representation of C is destroyed
+but C will still be running uneffected. 
 
 ---- RATIONALE ----
 
@@ -137,6 +272,23 @@ Separating the commands in the shell also allows multiple commands to be written
 >> What advantages or disadvantages can you see to your design
 >> for file descriptors?
 
+One of the advantages for this design would be it is easy to keep track of open files wihtin a single process by manipulating list of file_map for every thread. Search is efficient as each process always search through 1 list of maps to get the corresponding file pointer.
+
+A disadvantage to our design could be when a process opens a lot of files. Every call to find a file pointer from its corresponding descriptor iterates throught the whole list, meaning if the list is long, iteration might not be very efficient. Nevertheless, it is not a common case where a process deals with a large number of opened files.
+
 >> B11: (2 marks)
 >> The default tid_t to pid_t mapping is the identity mapping.
 >> Did you change this? Why?
+
+No. There is a potential problem with the identity mapping, that is 
+when the user input an invalid pid to a system call, the kernel
+could mistake that pid as valid if there exists a kernel thread
+with tid equals to the invalid pid. If this happens the system call 
+would continue to run instead of giving out the error right away, and
+this could cause unwanted behaviours. The reason we did not change this
+mapping is because the only system call that takes pid as an argument 
+is the wait system call and our implementation of wait has already 
+check if there really exists the process with the given pid, returning 
+error otherwise. Therefore, given our current design, it is safe to 
+use the identity mapping and changing this would over complicates the 
+design. 
