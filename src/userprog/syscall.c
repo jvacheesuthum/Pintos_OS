@@ -57,50 +57,79 @@ syscall_handler (struct intr_frame *f)
       syscall_name > SYS_INUMBER) 
 	exit(RET_ERROR, f);
 
+  int* intptr;
+  char** charptr;
+  unsigned* uptr;
+
   switch(syscall_name){
     case SYS_EXIT:
-      exit(*(int *) (esp + INSTR_SIZE),f);
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (intptr == NULL) exit(RET_ERROR, f);
+      exit(*(intptr),f);
       break;
     case SYS_WRITE:
-      f->eax = write(*(int *)(esp + INSTR_SIZE),
-                     *(char **)(esp + INSTR_SIZE*2),
-                     *(unsigned *)(esp + INSTR_SIZE*3));
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
+      uptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*3);
+      if (intptr == NULL || charptr == NULL || uptr == NULL) exit(RET_ERROR, f);
+      f->eax = write(*(intptr), *(charptr), *(uptr));
       break;
     case SYS_HALT:
       halt();
       break;
     case SYS_EXEC:
-      f->eax = exec (*(char **) (esp + INSTR_SIZE));
+      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (charptr == NULL) exit(RET_ERROR, f);
+      f->eax = exec (*(charptr));
       break;
     case SYS_WAIT:
-      f->eax = wait (* (int *)(esp + INSTR_SIZE));
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (intptr == NULL) exit(RET_ERROR, f);
+      f->eax = wait (* (intptr));
       break;
     case SYS_CREATE:
-      f->eax = create(*(char **) (esp + INSTR_SIZE), 
-                      *(unsigned *) (esp + INSTR_SIZE*2));
+      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      uptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
+      if (charptr == NULL || uptr == NULL) exit(RET_ERROR, f);
+      f->eax = create(*(charptr), *(uptr));
       break;
     case SYS_REMOVE:
-      f->eax = remove(*(char **) (esp + INSTR_SIZE),f);
+      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (charptr == NULL) exit(RET_ERROR, f);
+      f->eax = remove(*(charptr),f);
       break;
     case SYS_OPEN:
-      f->eax = open(*(char **) (esp + INSTR_SIZE));
+      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (charptr == NULL) exit(RET_ERROR, f);
+      f->eax = open(*(charptr));
       break;
     case SYS_FILESIZE:
-      f->eax = filesize(*(int *) (esp + INSTR_SIZE)); 
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (intptr == NULL) exit(RET_ERROR, f);
+      f->eax = filesize(*(intptr)); 
       break;
     case SYS_READ:
-      f->eax = read(*(int *)(esp + INSTR_SIZE),
-                    *(char **)(esp + INSTR_SIZE*2),
-                    *(unsigned *)(esp + INSTR_SIZE*3));
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
+      uptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*3);
+      if (intptr == NULL || charptr == NULL || uptr == NULL) exit(RET_ERROR, f);
+      f->eax = read(*(intptr), *(charptr), *(uptr));
       break;
     case SYS_SEEK:
-      seek(*(int *)(esp + INSTR_SIZE), *(unsigned *)(esp + INSTR_SIZE*2), f);
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      uptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
+      if (intptr == NULL || uptr == NULL) exit(RET_ERROR, f);
+      seek(*(intptr), *(uptr), f);
       break;
     case SYS_TELL:
-      f->eax = tell(*(int *)(esp + INSTR_SIZE), f);
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (intptr == NULL) exit(RET_ERROR, f);
+      f->eax = tell(*(intptr), f);
       break;
     case SYS_CLOSE:
-      close(*(int *) (esp + INSTR_SIZE), f); 
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (intptr == NULL) exit(RET_ERROR, f);
+      close(*(intptr), f); 
       break;
 
     default:

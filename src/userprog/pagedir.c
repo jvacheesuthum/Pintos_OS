@@ -126,8 +126,7 @@ void *
 pagedir_get_page (uint32_t *pd, const void *uaddr) 
 {
   uint32_t *pte;
-  if (uaddr != NULL && is_user_vaddr (uaddr) && is_user_vaddr (uaddr + 4) &&
-      is_user_vaddr (uaddr + 8) && is_user_vaddr (uaddr + 12)) {  
+  if (uaddr != NULL && is_user_vaddr (uaddr)) {  
     pte = lookup_page (pd, uaddr, false);
     if (pte != NULL && (*pte & PTE_P) != 0)
       return pte_get_page (*pte) + pg_ofs (uaddr);
