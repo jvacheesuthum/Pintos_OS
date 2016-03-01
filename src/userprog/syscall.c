@@ -127,7 +127,10 @@ exit (int status, struct intr_frame* f){
   if(f != NULL) f->eax = status;
   struct thread *parent = thread_current()->parent_process;
   struct child_process *pcp = get_child_process(thread_current()->tid, &parent->children_processes);
-  pcp->exit_status = status;
+  if(pcp->exit_status != NULL){
+    // it might be NULL when parent has already exited and free is called on its child processes
+    pcp->exit_status = status;
+  }
 
   printf("%s: exit(%i)\n", thread_current()->name, status);
   thread_exit();
