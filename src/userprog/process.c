@@ -79,18 +79,19 @@ process_execute (const char *file_name)
   struct thread* t = get_thread(tid);
   sema_down(&t->process_wait_sema);
  //-----------------------------------
-  struct thread *tc = thread_current();
-  struct list_elem *e;
-  struct child_process* thiscp= NULL;
-  
+//  struct thread *tc = thread_current();
+//  struct list_elem *e;
+//  struct child_process* thiscp= NULL;
+/*  
   for (e = list_begin(&tc->children_processes); e != list_end (&tc->children_processes); e = list_next(e)) {
     struct child_process *chp = list_entry (e, struct child_process, cp_elem);
     if (chp->tid == tid) {
       thiscp = chp;
     }
   }
-
-  if (thiscp-> exit_status == -1){
+*/
+  struct child_process *chp = get_child_process(tid,&thread_current()->children_processes);
+  if (chp-> exit_status == -1){
     tid = TID_ERROR;
   }
 //---------------------------------
