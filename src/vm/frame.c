@@ -1,7 +1,9 @@
-#include "frame.h"
+#include "vm/frame.h"
 #include "list.h"
 #include "threads/palloc.h"
 #include <stddef.h>
+#include <debug.h>
+
 
 // should actually use hash but for testing correctness use list for now.
 struct frame
@@ -28,7 +30,7 @@ frame_get_page(uint8_t *upage)
   
 //for now, no swapping, just panic if no more memory.
   if (result == NULL) {
-	ASSERT false;
+	ASSERT (false);
   }
 
 //add entry to frame table
@@ -48,7 +50,7 @@ frame_get_page_zero(uint8_t *upage)
   
 //for now, no swapping, just panic if no more memory.
   if (result == NULL) {
-	ASSERT false;
+	ASSERT (false);
   }
 
 //add entry to frame table
