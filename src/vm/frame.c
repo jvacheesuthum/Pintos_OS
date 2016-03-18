@@ -24,29 +24,11 @@ frame_table_init(void)
 // only for user processes. 
 //kernel should directly use palloc get page as original
 void* 
-frame_get_page(uint8_t *upage)
+frame_get_page(uint8_t *upage, enum palloc_flags flags)
 {
-  void* result = palloc_get_page(PAL_USER);
-  
-//for now, no swapping, just panic if no more memory.
-  if (result == NULL) {
-	ASSERT (false);
-  }
+  ASSERT (flags & PAL_USER)
 
-//add entry to frame table
-  struct frame* entry = malloc(sizeof(struct frame));
-  entry->upage = upage;
-  entry->physical = result;
-  list_push_back(&frame_table, &entry->elem);
-
-  return result;
-
-}
-
-void* 
-frame_get_page_zero(uint8_t *upage)
-{
-  void* result = palloc_get_page(PAL_USER | PAL_ZERO);
+  void* result = palloc_get_page(flags);
   
 //for now, no swapping, just panic if no more memory.
   if (result == NULL) {
