@@ -214,24 +214,36 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
+  // -------------------------------------------------------------------------------- exit lock 
   struct thread *child = get_thread(child_tid);
   struct child_process *cp 
     = get_child_process(child_tid, &thread_current()->children_processes);
+  // if child's exit is called between here and the end of if statements if(child==NULL) might 
+  // not be met when it should, therefor exit lock is required to prevent child from exiting
   if(cp == NULL){
     /*invalid tid*/
+    /* will not race because only current thread can create new cp*/
     return RET_ERROR;
   }
   
   if(cp->waited == true){
     /*process_wait has already been called on it*/
+    /* will not race because cp->wait will only be chaged here in this function
+     * and wait can only be called by the parent's thread which is unique for each child*/
     return RET_ERROR;
   }
   cp->waited = true;
   if(child == NULL){
     /*child thread no longer exist, ie terminated 
       if terminated by kernel will return -1*/
+    /* will not race because only the current thread can create a new child i
+     * so if get_thread returns NULL it will not change */
     return cp->exit_status;
   }
+
+
+  //---------------------------------------------------------------------------------- exit lock release
+  //// but if it exits here???
   /*actual waiting*/
   
   sema_down(&child->process_wait_sema);
