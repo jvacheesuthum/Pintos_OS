@@ -87,7 +87,6 @@ struct child_process{
   tid_t tid;
   int exit_status;
   bool waited;  
-  struct lock cp_wait_lock; 
   struct list_elem cp_elem; // use for child_processes list in struct thread
 };
 #endif
