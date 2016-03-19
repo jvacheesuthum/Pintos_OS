@@ -28,6 +28,8 @@ static int write (int fd, const void *buffer, unsigned size);
 static void seek (int fd, unsigned position, struct intr_frame *f);
 static unsigned tell (int fd, struct intr_frame *f);
 static void close (int fd, struct intr_frame *f);
+static mapid_t mmap (int fd, void *addr);
+static void munmap (mapid_t mapping);
 struct file_map* get_file_map(int fd); 
 struct lock file_lock; 
 
@@ -332,6 +334,63 @@ close (int fd, struct intr_frame* f) {
   free(map);
   lock_release(&file_lock);
 }
+
+static mapid_t
+mmap (int fd, void *addr) {
+  if (addr == NULL || !addr || addr % PGSIZE == 0 || fd == STDIN_FILENO || fd == STDOUT_FILENO) {
+    return -1;
+  }
+  lock_acquire(&file_lock);
+  struct file* opening = file_reopen(get_file_map(fd)-> filename); 
+  lock_release(&file_lock);
+  int size = file_size(opening);
+  if (!size || opening == NULL) {  
+    return -1;
+  }
+  void* original_addr = addr;
+  //loop to write 1 pgsize at a time to addr, use addr += pgsize to move on
+  //check out spec 5.3.4 for "stick out" part
+  while (size > 0) {
+    if () { //mapped overlaps existing pages -> retrieve the addr and see if there anything in there - HOW
+      return -1;
+    }
+    if (size > PGSIZE) {
+      //TODO write to one page at addr
+      addr += PGSIZE
+      size -= PGSIZE
+    } else {
+    
+    }
+  }  
+  struct mem_map *memmap = (struct mem_map *) malloc (sizeof (struct mem_map));
+  if (memmap == NULL) {
+    return -1;
+  }
+  memmap-> start = original_addr;
+  memmap-> end = addr;
+  memmap-> fd = fd
+  memmap-> mapid = next_mapid;             //TODO define this somewhere
+  next_mapid++;
+  hash_insert(mmap_table, memmap-> hashelem); //TODO define the hash - mmap_table and init somewhere
+}
+static void
+munmap (mapid_t mapping) {
+  struct mem_map *map = get_mem_map(mapping);
+  if (map == NULL) return;          //or exit -1 here?
+  void* start = map-> start;
+  void* end = map-> end;
+  for (start; start < end; start += PGSIZE) {
+    void* pg_addr = pagedir_get_page(thread_current()-> supp_pagetable-> pagedir, map->start)
+    //TODO ^^^ replace supppagetable with real one in thread.h
+    if (pg_addr == NULL) {
+      continue;              //page might already be freed by some other method, keep checking until the end
+    } else {
+      free(pg_addr);
+    }
+  }
+  hash_delete(mmap_table, map-> hashelem);
+  free(map);
+}
     
 //----------utility fuctions---------------//
   
@@ -349,6 +408,17 @@ get_file_map(int fd) {
     }
   }
   return NULL;
+}
+
+//takes a mapid and returns struct *mem_map that has the corresponding mapid
+struct mem_map*
+get_mem_map (mapid_t mapping) {
+  struct mem_map map;
+  //ref appendix A page 75 for searching
+  struct hash_elem *elem 
+  map.mapid = mapping
+  elem = hash_find (&mmap_table, &map.hash_elem);
+  return elem != NULL ? hash_entry (elem, struct mem_map, hash_elem) : NULL;
 }
  
 

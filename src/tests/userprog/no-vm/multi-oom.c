@@ -160,7 +160,7 @@ main (int argc, char *argv[])
         expected_depth = reached_depth;
       else if (expected_depth != reached_depth)
         fail ("after run %d/%d, expected depth %d, actual depth %d.",
-              i, howmany, expected_depth, reached_depth);
+             i, howmany, expected_depth, reached_depth);
       ASSERT (expected_depth == reached_depth);
     }
 

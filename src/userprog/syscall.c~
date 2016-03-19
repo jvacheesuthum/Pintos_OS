@@ -11,12 +11,12 @@
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
+#include "lib/string.h"
 
 static void syscall_handler (struct intr_frame *);
 
 
 static void halt (void);
-//void exit (int status, struct intr_frame *f);
 static pid_t exec(const char *cmd_line);
 static int wait (pid_t pid);
 static bool create (const char *file, unsigned initial_size);
@@ -28,6 +28,8 @@ static int write (int fd, const void *buffer, unsigned size);
 static void seek (int fd, unsigned position, struct intr_frame *f);
 static unsigned tell (int fd, struct intr_frame *f);
 static void close (int fd, struct intr_frame *f);
+static mapid_t mmap (int fd, void *addr);
+static void munmap (mapid_t mapping);
 struct file_map* get_file_map(int fd); 
 struct lock file_lock; 
 
@@ -50,67 +52,96 @@ syscall_handler (struct intr_frame *f)
   void *esp = pagedir_get_page(thread_current()->pagedir, f->esp);
   if (esp == NULL || 
      esp < PHYS_BASE) {
-       exit(-1, f);
+       exit(RET_ERROR, f);
   }
   int syscall_name = *(int *)esp;
-  if (syscall_name < SYS_HALT || syscall_name > SYS_INUMBER) exit(-1, f);
-  //lock_init(&file_lock);
+  if (syscall_name < SYS_HALT || 
+      syscall_name > SYS_INUMBER) 
+	exit(RET_ERROR, f);
+
+  int* intptr;
+  char** charptr;
+  unsigned* uptr;
+  void* endofbuff;
+
   switch(syscall_name){
     case SYS_EXIT:
-//      printf("%s SYS_EXIT\n", thread_current()->name);
-      exit(*(int *) (esp + 4),f);
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (intptr == NULL) exit(RET_ERROR, f);
+      exit(*(intptr),f);
       break;
     case SYS_WRITE:
-//      printf("%s SYS_WRITE\n", thread_current()->name);
-      f->eax = write(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
+      uptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*3);
+      endofbuff = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2 + *uptr);
+      if (intptr == NULL || charptr == NULL || uptr == NULL || endofbuff == NULL) exit(RET_ERROR, f);
+      f->eax = write(*(intptr), *(charptr), *(uptr));
       break;
     case SYS_HALT:
       halt();
       break;
     case SYS_EXEC:
-//      printf("%s SYS_EXEC\n", thread_current()->name);
-      f->eax = exec (*(char **) (esp + 4));
+      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (charptr == NULL) exit(RET_ERROR, f);
+      f->eax = exec (*(charptr));
       break;
     case SYS_WAIT:
-//      printf("%s SYS_WAIT\n", thread_current()->name);
-      f->eax = wait (* (int *)(esp + 4));
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (intptr == NULL) exit(RET_ERROR, f);
+      f->eax = wait (* (intptr));
       break;
     case SYS_CREATE:
-//      printf("%s SYS_CREATE\n", thread_current()->name);
-      f->eax = create(*(char **) (esp + 4), *(unsigned *) (esp + 4*2));
+      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      uptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
+      if (charptr == NULL || uptr == NULL) exit(RET_ERROR, f);
+      f->eax = create(*(charptr), *(uptr));
       break;
     case SYS_REMOVE:
-      f->eax = remove(*(char **) (esp + 4),f);
+      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (charptr == NULL) exit(RET_ERROR, f);
+      f->eax = remove(*(charptr),f);
       break;
     case SYS_OPEN:
- //     printf("%s SYS_OPEN\n", thread_current()->name);
-      f->eax = open(*(char **) (esp + 4*1));
+      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (charptr == NULL) exit(RET_ERROR, f);
+      f->eax = open(*(charptr));
       break;
     case SYS_FILESIZE:
-      f->eax = filesize(*(int *) (esp + 4)); 
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (intptr == NULL) exit(RET_ERROR, f);
+      f->eax = filesize(*(intptr)); 
       break;
     case SYS_READ:
- //     printf("%s SYS_READ\n", thread_current()->name);
-      f->eax = read(*(int *)(esp + 4),* (char **)(esp + 4*2),* (unsigned *)(esp + 4*3));
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
+      uptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*3);
+      endofbuff = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2 + *uptr);
+      if (intptr == NULL || charptr == NULL || uptr == NULL || endofbuff == NULL) exit(RET_ERROR, f);
+      f->eax = read(*(intptr), *(charptr), *(uptr));
       break;
     case SYS_SEEK:
-      seek(*(int *)(esp + 4), *(unsigned *)(esp + 4*2), f);
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      uptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
+      if (intptr == NULL || uptr == NULL) exit(RET_ERROR, f);
+      seek(*(intptr), *(uptr), f);
       break;
     case SYS_TELL:
-      f->eax = tell(*(int *)(esp + 4), f);
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (intptr == NULL) exit(RET_ERROR, f);
+      f->eax = tell(*(intptr), f);
       break;
     case SYS_CLOSE:
-//      printf("%s SYS_CLOSE\n", thread_current()->name);
-      close(*(int *) (esp + 4), f); 
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (intptr == NULL) exit(RET_ERROR, f);
+      close(*(intptr), f); 
       break;
 
-    default: // original code*/
-//      printf("syscall!: %i\n", syscall_name);
-//      thread_exit ();
+    default:
       break;
   }
 }
-  //------- write your methods here --------//
+
 static void
 halt(void){
   shutdown_power_off();
@@ -118,23 +149,23 @@ halt(void){
 
 static pid_t
 exec(const char *cmd_line){
-  lock_acquire(&file_lock);
+  /*process_execute does synchronisation, so don't need a lock here*/
   tid_t pid = process_execute(cmd_line);
-  lock_releasopene(&file_lock);
   //deny writes to this file is in start_process and process_exit
   //taking pid as tid, both are ints
   return (pid_t) pid;  
-//  return -1;
 }
 
 void
 exit (int status, struct intr_frame* f){
   if(f != NULL) f->eax = status;
-  //---//
   struct thread *parent = thread_current()->parent_process;
   struct child_process *pcp = get_child_process(thread_current()->tid, &parent->children_processes);
-  pcp->exit_status = status;
-  //---//
+  if(pcp->exit_status != NULL){
+    // it might be NULL when parent has already exited and free is called on its child processes
+    pcp->exit_status = status;
+  }
+
   printf("%s: exit(%i)\n", thread_current()->name, status);
   thread_exit();
 }
@@ -148,16 +179,17 @@ wait (pid_t pid){
 static bool 
 create (const char *file, unsigned initial_size)
 {
-  if (file == NULL) {
-    exit(-1, NULL);
-    return NULL;
-  };
-  return filesys_create(file, initial_size);
+  if (file == NULL) exit(-1, NULL);
+  
+  lock_acquire(&file_lock);
+  bool result = filesys_create(file, initial_size);
+  lock_release(&file_lock);
+  return result;
 }
 
 static bool
 remove (const char *file, struct intr_frame* f) {
-  if (file == NULL) exit(-1, f);
+  if (file == NULL) exit(RET_ERROR, f);
   lock_acquire(&file_lock);
   bool remove = filesys_remove(file);
   lock_release(&file_lock);
@@ -168,7 +200,7 @@ static int
 filesize(int fd) {
   lock_acquire(&file_lock);
   struct file_map* map = get_file_map(fd);
-  if (map == NULL) return -1;
+  if (map == NULL) return RET_ERROR;
   int length = file_length(map-> filename);
   lock_release(&file_lock);
   return length;
@@ -177,14 +209,15 @@ filesize(int fd) {
 static int 
 read (int fd, void *buffer, unsigned size)
 {
+  //check if in user addr space
   if (!is_user_vaddr (buffer) || 
       !is_user_vaddr (buffer + size)) {
-    exit(-1, NULL);
+    exit(RET_ERROR, NULL);
   }
   unsigned count = 0;
   struct file_map *file_map;
   switch(fd) {
-    case 0:
+    case 0://stdin
       lock_acquire(&file_lock);
       while (count != size) {
         *(uint8_t *)(buffer + count) = input_getc();
@@ -193,11 +226,11 @@ read (int fd, void *buffer, unsigned size)
       lock_release(&file_lock);
       return count;
     case 1:
-      return -1;
-    default:
+      return RET_ERROR;
+    default: //read from file
       file_map = get_file_map(fd);
       if (file_map == NULL) {
-        return -1;
+        return RET_ERROR;
       }
       lock_acquire(&file_lock);
       int read = file_read (file_map->filename, buffer, size);
@@ -208,7 +241,12 @@ read (int fd, void *buffer, unsigned size)
 
 static int
 write (int fd, const void *buffer, unsigned size) {
-  //maybe check if buffer pointer is valid here
+
+  if (!is_user_vaddr (buffer) || 
+      !is_user_vaddr (buffer + size)) {
+    exit(RET_ERROR, NULL);
+  }
+
   char* data;
   data = buffer;
   unsigned wsize = size;
@@ -216,11 +254,10 @@ write (int fd, const void *buffer, unsigned size) {
   struct file_map* target;
   switch(fd){
     case 0 :
-      exit(-1, NULL); 
-      return -1;              //fd 0 is standard in, cannot be written
-    case 1 : 			//write to sys console
+      return RET_ERROR;  //fd 0 is standard in, cannot be written
+    case 1 : //write to sys console
 	maxbufout = 300;
-	if (size > maxbufout) { 	//break up large buffer (>300 bytes for now)
+	if (size > maxbufout) { //break up large buffer (>300 bytes for now)
 	  unsigned wsize = size;
 	  char* temp;
 	  while (wsize > maxbufout) {
@@ -234,7 +271,7 @@ write (int fd, const void *buffer, unsigned size) {
 	return size;
     default :
 	target = get_file_map(fd);
-	if (target == NULL) return -1;
+	if (target == NULL) return RET_ERROR;
 	lock_acquire(&file_lock);
 	int write = file_write(target-> filename, buffer, size);  //defined in file.c
 	lock_release(&file_lock);
@@ -244,24 +281,26 @@ write (int fd, const void *buffer, unsigned size) {
     
 static int
 open (const char *file) {
-  if (file == NULL) {
-//    exit(-1, NULL);
-    return -1;
-  }
+  if (file == NULL) return RET_ERROR;
+
   lock_acquire(&file_lock);
   struct file* opening = filesys_open(file); 
   lock_release(&file_lock);
-  if (opening == NULL){
-    return -1;
-  }    
+  if (opening == NULL) return RET_ERROR;
+
   //map the opening file to an available fd (not 0 or 1) and returns fd
   struct file_map* newmap = (struct file_map *) malloc (sizeof(struct file_map));
+  if (newmap == NULL){
+     free(newmap);
+     return RET_ERROR;
+  }
   lock_acquire(&file_lock);
   int newfile_id = thread_current() -> next_fd;
   thread_current() -> next_fd ++;    //increment next available descriptor
   newmap -> filename = opening;
   newmap -> file_id = newfile_id; 
-  list_push_back(&thread_current()-> files, &newmap-> elem); //put this fd-file map into list in struct thread
+  list_push_back(&thread_current()-> files, &newmap-> elem);
+  //put this fd-file map into list in struct thread
   lock_release(&file_lock);
   return newfile_id;
 }
@@ -269,7 +308,7 @@ open (const char *file) {
 static void
 seek (int fd, unsigned position, struct intr_frame* f) {
   struct file_map* map = get_file_map(fd);
-  if (map == NULL) exit(-1,f);
+  if (map == NULL) exit(RET_ERROR,f);
   lock_acquire(&file_lock);
   file_seek(map-> filename, position);
   lock_release(&file_lock);
@@ -278,7 +317,7 @@ seek (int fd, unsigned position, struct intr_frame* f) {
 static unsigned
 tell (int fd, struct intr_frame* f) {
   struct file_map* map = get_file_map(fd);
-  if (map == NULL) exit(-1,f);
+  if (map == NULL) exit(RET_ERROR,f);
   lock_acquire(&file_lock);
   int tell = file_tell(map-> filename);
   lock_acquire(&file_lock);
@@ -288,12 +327,55 @@ tell (int fd, struct intr_frame* f) {
 static void
 close (int fd, struct intr_frame* f) {
   struct file_map* map = get_file_map(fd);
-  if (map == NULL) exit(-1,f);
+  if (map == NULL) exit(RET_ERROR,f);
   lock_acquire(&file_lock);
   list_remove(&map-> elem);
   file_close(map-> filename);
   free(map);
   lock_release(&file_lock);
+}
+
+static mapid_t
+mmap (int fd, void *addr) {
+  if (addr == NULL || !addr || addr % PGSIZE == 0 || fd == STDIN_FILENO || fd == STDOUT_FILENO) {
+    return -1;
+  }
+  lock_acquire(&file_lock);
+  struct file* opening = file_reopen(get_file_map(fd)-> filename); 
+  lock_release(&file_lock);
+  int size = file_size(opening);
+  if (!size || opening == NULL) {  
+    return -1;
+  }
+  void* original_addr = addr;
+  //loop to write 1 pgsize at a time to addr, use addr += pgsize to move on
+  //check out spec 5.3.4 for "stick out" part
+  while (size > 0) {
+    if () { //mapped overlaps existing pages -> retrieve the addr and see if there anything in there - HOW
+      return -1;
+    }
+    if (size > PGSIZE) {
+      //TODO write to one page at addr
+      addr += PGSIZE
+      size -= PGSIZE
+    } else {
+    
+    }
+  }  
+  struct mem_map *memmap = (struct mem_map *) malloc (sizeof (struct mem_map));
+  if (memmap == NULL) {
+    return -1;
+  }
+  memmap-> start = original_addr;
+  memmap-> end = addr;
+  memmap-> fd = fd
+  memmap-> mapid = next_mapid;             //TODO define this somewhere
+  next_mapid++;
+  hash_insert(mmap_table, memmap-> hashelem); //TODO define the hash - mmap_table and init somewhere
+}
+static void
+munmap (mapid_t mapping) {
+
 }
     
 //----------utility fuctions---------------//
@@ -312,6 +394,17 @@ get_file_map(int fd) {
     }
   }
   return NULL;
+}
+
+//takes a mapid and returns struct *mem_map that has the corresponding mapid
+struct mem_map*
+get_mem_map (mapid_t mapping) {
+  struct mem_map map;
+  //ref appendix A page 75 for searching
+  struct hash_elem *elem 
+  map.mapid = mapping
+  elem = hash_find (&mmap_table, &map.hash_elem);
+  return elem != NULL ? hash_entry (elem, struct mem_map, hash_elem) : NULL;
 }
  
 
