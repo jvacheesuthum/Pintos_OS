@@ -13,23 +13,29 @@ supp_pt_init (struct supp_page_table* spt)
 }
 
 
-/* See 5.1.4 point 1 : (called from pagefault handler) 
+/* See 5.1.4 : (called from pagefault handler) 
  * returns the location of the data belongs to upage that causes pagefault */
 void*
 supp_pt_locate_fault (struct supp_page_table* spt, uint8_t* upage)
 {
   
   if(0 <= upage && upage <= PHYS_BASE){
-    if(spt->exists[evicted] == 1){
-      /* page is now in swap slot (provided swap slot is the only place we evict data to)
-       * 1. find it from the slot .. how?
-       * 2. do the necessary swaps and updates?
-       * 3. return the address of the kernel virtual address?
-       */
-
-
+    if(spt->evicted[upage] == 1){
+      /* page is now in swap slot (provided swap slot is the only place we evict data to) */
+      /* (1) find it from the slot .. how? => results in found_swap find writable also */
+      /* (2): obtain a frame to store the page */
+      void* free_frame = frame_get_page(upage, PAL_USER);
+      /* (3) fetch data into frame */
+      free_frame = found_swap;
+      /* (4) point the page table entry for the faulting virtual address to frame */
+      evicted[upage] = 0;
+      res = pagedir_set_page (spt->pagedir, upage, free_frame, writable);
+      if(!res){
+        ASSERT (false); // panics, will this ever happen?
+      }
     }
   } 
+  // todo: check if fault causes by writing to read-only page is already covered here. (it should)
   process_exit();
 }
 

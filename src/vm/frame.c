@@ -33,6 +33,7 @@ frame_get_page(uint8_t *upage, enum palloc_flags flags)
 //for now, no swapping, just panic if no more memory.
   if (result == NULL) {
 	ASSERT (false);
+        // TODO: update evicted array in supp table as well
   }
 
 //add entry to frame table
