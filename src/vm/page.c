@@ -22,17 +22,17 @@ supp_pt_locate_fault (struct supp_page_table* spt, uint8_t* upage)
   if(is_user_vaddr(upage)){
     if(spt->evicted[upage/PGSIZE] == 1){
       /* page is now in swap slot (provided swap slot is the only place we evict data to) */
-      /* (1) find it from the slot .. how? => results in found_swap find writable also */
+      /* (1) find it from the slot */
       /* (2): obtain a frame to store the page */
-      void* free_frame = frame_get_page(upage, PAL_USER);
       /* (3) fetch data into frame */
-      free_frame = found_swap;
+      void* kpage = swap_lookup_page(upage);
       /* (4) point the page table entry for the faulting virtual address to frame */
       evicted[upage/PGSIZE] = 0;
       res = pagedir_set_page (spt->pagedir, upage, free_frame, writable);
       if(!res){
         ASSERT (false); // panics, will this ever happen?
       }
+      return kpage;
     }
   } 
   // todo: check if fault causes by writing to read-only page is already covered here. (it should)
