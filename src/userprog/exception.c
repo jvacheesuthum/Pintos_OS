@@ -7,6 +7,8 @@
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
 #include "userprog/syscall.h"
+#include "vm/frame.h"
+#include "threads/palloc.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -155,8 +157,22 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   //-----------TASK 2------------//
-  if (not_present || (user && !is_user_vaddr (fault_addr))) exit(-1, NULL);
+//  if (not_present || (user && !is_user_vaddr (fault_addr))) exit(-1, NULL);
   //-----------------------------//
+
+  //------------TASK 3-------------//
+  //if stack pointer decremented manually, then esp == fault_addr
+  bool set;
+  bool push_check = (fault_addr == f->esp - 4) || (fault_addr == f->esp - 32);
+
+//  if (((f->esp == fault_addr) || (push_check))) {
+  if (!user || push_check) {
+    if (PHYS_BASE - fault_addr > 8000000) kill(f); 
+    void *kpage = frame_get_page(f->esp, PAL_ZERO | PAL_USER); //PAL_ZERO as well?
+    set = pagedir_set_page (thread_current()->pagedir, f->esp, kpage, true);
+    return;
+  }
+  //------------------------------//
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to

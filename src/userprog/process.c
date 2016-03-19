@@ -52,7 +52,7 @@ process_execute (const char *file_name)
       return TID_ERROR;
    }
 //  strlcpy (fn_copy2, file_name, PGSIZE);
-  memcpy (fn_copy2, file_name, strlen(file_name) + 1);
+  strlcpy (fn_copy2, file_name, strlen(file_name) + 1);
   file_name = strtok_r (fn_copy2, " ", &save_ptr);
   //---------------------------------------//
 
@@ -157,18 +157,15 @@ start_process (void *file_name_)
   //-------------ARGPASS-----------------//
 
   if (success) {
-//    if_.esp -= file_name_len + 1;
     push_stack(&if_.esp, file_name_len + 1);
 
     origin = if_.esp;
     memcpy (if_.esp, file_name, file_name_len + 1);
 
     //round down to a multiple of 4
-//    if_.esp -= INSTR_SIZE - ((file_name_len + 1) % INSTR_SIZE);
     push_stack(&if_.esp, (INSTR_SIZE - ((file_name_len + 1) % INSTR_SIZE)));
 
     //0 for arg_list[argc] and word-align
-//    if_.esp -= INSTR_SIZE;
     push_stack(&if_.esp, INSTR_SIZE);
     *(int *) if_.esp = 0;
    
