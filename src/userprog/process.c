@@ -99,6 +99,12 @@ process_execute (const char *file_name)
   return tid;
 }
 
+void 
+push_stack(void **esp, int offset) {
+  *esp -= offset;
+  if(!is_user_vaddr (*esp)) exit(RET_ERROR, NULL);
+}
+
 /* A thread function that loads a user process and starts it
    running. */
 static void
@@ -151,30 +157,34 @@ start_process (void *file_name_)
   //-------------ARGPASS-----------------//
 
   if (success) {
-    if_.esp -= file_name_len + 1;
+//    if_.esp -= file_name_len + 1;
+    push_stack(&if_.esp, file_name_len + 1);
+
     origin = if_.esp;
     memcpy (if_.esp, file_name, file_name_len + 1);
 
     //round down to a multiple of 4
-    if_.esp -= INSTR_SIZE - ((file_name_len + 1) % INSTR_SIZE);
+//    if_.esp -= INSTR_SIZE - ((file_name_len + 1) % INSTR_SIZE);
+    push_stack(&if_.esp, (INSTR_SIZE - ((file_name_len + 1) % INSTR_SIZE)));
 
     //0 for arg_list[argc] and word-align
-    if_.esp -= INSTR_SIZE;
+//    if_.esp -= INSTR_SIZE;
+    push_stack(&if_.esp, INSTR_SIZE);
     *(int *) if_.esp = 0;
    
     //push elem right to left
     for (i = argc - 1; i >= 0; i--) {
-      if_.esp -= INSTR_SIZE;
+      push_stack(&if_.esp, INSTR_SIZE);
       *(char **) if_.esp = origin + offsets[i];
     }
     //argv points to arg_list[0]
-    if_.esp -= INSTR_SIZE;
+    push_stack(&if_.esp, INSTR_SIZE);
     *(char **) if_.esp = if_.esp + INSTR_SIZE;
     //pushing argc
-    if_.esp -= INSTR_SIZE;
+    push_stack(&if_.esp, INSTR_SIZE);
     *(int *)if_.esp = argc;
     //return addr
-    if_.esp -= INSTR_SIZE;
+    push_stack(&if_.esp, INSTR_SIZE);
     *(int *)if_.esp = 0;
   
      
