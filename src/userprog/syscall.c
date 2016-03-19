@@ -31,8 +31,8 @@ static void close (int fd, struct intr_frame *f);
 static mapid_t mmap (int fd, void *addr);
 static void munmap (mapid_t mapping);
 struct file_map* get_file_map(int fd); 
+struct mem_map* get_mem_map (mapid_t mapping);
 struct lock file_lock; 
-
 
 void
 syscall_init (void) 
@@ -351,7 +351,8 @@ mmap (int fd, void *addr) {
   //loop to write 1 pgsize at a time to addr, use addr += pgsize to move on
   //check out spec 5.3.4 for "stick out" part
   while (size > 0) {
-    if () { //mapped overlaps existing pages -> retrieve the addr and see if there anything in there - HOW
+ //mapped overlaps existing pages -> retrieve the addr and see if there anything in there - not sure
+    if (pagedir_get_page(thread_current()-> supp_pagetable-> pagedir, addr) != NULL) {
       return -1;
     }
     if (size > PGSIZE) {
@@ -369,10 +370,11 @@ mmap (int fd, void *addr) {
   memmap-> start = original_addr;
   memmap-> end = addr;
   memmap-> fd = fd
-  memmap-> mapid = next_mapid;             //TODO define this somewhere
-  next_mapid++;
+  memmap-> mapid = thread_current()-> next_mapid;             //defined in struct thread
+  thread_current()-> next_mapid++;
   hash_insert(mmap_table, memmap-> hashelem); //TODO define the hash - mmap_table and init somewhere
 }
+
 static void
 munmap (mapid_t mapping) {
   struct mem_map *map = get_mem_map(mapping);
@@ -392,7 +394,9 @@ munmap (mapid_t mapping) {
   free(map);
 }
     
-//----------utility fuctions---------------//
+    
+    
+//-------------------------------------utility fuctions------------------------------------------------//
   
 //takes file descriptor and returns pointer to the file map that corresponds to it
 //not sure if it needs lock -> no locks acquired during calls to this
@@ -422,7 +426,6 @@ get_mem_map (mapid_t mapping) {
 }
  
 
-  
   
   
   
