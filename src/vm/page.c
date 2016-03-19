@@ -19,8 +19,8 @@ void*
 supp_pt_locate_fault (struct supp_page_table* spt, uint8_t* upage)
 {
   
-  if(0 <= upage && upage <= PHYS_BASE){
-    if(spt->evicted[upage] == 1){
+  if(is_user_vaddr(upage)){
+    if(spt->evicted[upage/PGSIZE] == 1){
       /* page is now in swap slot (provided swap slot is the only place we evict data to) */
       /* (1) find it from the slot .. how? => results in found_swap find writable also */
       /* (2): obtain a frame to store the page */
@@ -28,7 +28,7 @@ supp_pt_locate_fault (struct supp_page_table* spt, uint8_t* upage)
       /* (3) fetch data into frame */
       free_frame = found_swap;
       /* (4) point the page table entry for the faulting virtual address to frame */
-      evicted[upage] = 0;
+      evicted[upage/PGSIZE] = 0;
       res = pagedir_set_page (spt->pagedir, upage, free_frame, writable);
       if(!res){
         ASSERT (false); // panics, will this ever happen?
