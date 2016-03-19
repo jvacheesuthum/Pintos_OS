@@ -41,6 +41,9 @@ frame_get_page(uint8_t *upage, enum palloc_flags flags)
   entry->physical = result;
   list_push_back(&frame_table, &entry->elem);
 
+  /* 
+   * TODO:  updates supp_pagetable as well
+   */
   return result;
 
 }
