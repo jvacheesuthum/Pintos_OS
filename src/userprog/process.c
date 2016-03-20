@@ -191,7 +191,6 @@ start_process (void *file_name_)
     lock_release(&file_lock);
     file_deny_write(thread_current()-> execfile);
   } 
-
   free (offsets);
 
   /* If load failed, quit. */
@@ -610,8 +609,20 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /* Get a page of memory. */
       uint8_t *kpage = frame_get_page (upage, PAL_USER);
-      if (kpage == NULL)
-        return false;
+//      if (kpage == NULL)
+//        return false;
+
+      //---------Paging-----------------//
+      if (page_read_bytes == PGSIZE) {
+        //TODO: page should be demand paged from the underlying file on its first access
+      } else
+      if (page_zero_bytes == PGSIZE) {
+         
+      } else {
+
+      }
+
+      //--------------------------------//
 
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)

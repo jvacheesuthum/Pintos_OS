@@ -158,24 +158,40 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  //-----------TASK 2------------//
-  if (not_present || (user && !is_user_vaddr (fault_addr))) exit(-1, NULL);
-  //-----------------------------//
 
   //------------TASK 3-------------//
   //if stack pointer decremented manually, then esp == fault_addr
-/*  bool set;
+  bool set;
   bool push_check = (fault_addr == f->esp - 4) || (fault_addr == f->esp - 32);
+//  if (not_present && !push_check) exit(-1, NULL);
+//  if (not_present) printf("not_present = true\n");
+//  if (write) printf("write = true\n");
+//  if (user) printf("user = true\n");
 
-  if (!user && push_check) {
-    if ((uint32_t *)PHYS_BASE - (uint32_t *)fault_addr > STACK_LIMIT) exit(RET_ERROR, NULL); 
+
+  if (f->esp == fault_addr || push_check) {
+    printf("HEREERERERER\n");
+    if ((uint32_t *)PHYS_BASE - (uint32_t *)fault_addr > STACK_LIMIT) {
+      exit(-1, NULL); 
+      //or kill(f)? Same problem below
+    }
     void *kpage = frame_get_page(f->esp, PAL_ZERO | PAL_USER); //PAL_ZERO as well?
-    if (kpage == NULL) exit(RET_ERROR, NULL);
-    set = pagedir_set_page (thread_current()->pagedir, f->esp, kpage, true);
-    if (!set) exit(RET_ERROR, NULL);
+//    void *kpage = palloc_get_page (PAL_ZERO | PAL_USER); 
+    if (kpage == NULL) exit(-1, NULL);
+    set = pagedir_set_page (thread_current()->pagedir, f->esp - PGSIZE, kpage, true);
+    if (!set) exit(-1, NULL);
     return;
-  }*/
+  }
   //------------------------------//
+  //-----------TASK 2------------//
+  if (not_present && (user && !is_user_vaddr (fault_addr))) {
+    exit(-1, NULL);
+  } else {
+//    void *kpage = palloc_get_page(PAL_ZERO);
+//    set = pagedir_set_page (thread_current()->pagedir, f->esp - PGSIZE, kpage, true);
+    exit(-1, NULL);
+  }
+  //-----------------------------//
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
