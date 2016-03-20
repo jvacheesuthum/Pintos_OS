@@ -1,5 +1,6 @@
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 #include <stddef.h>
 #include <debug.h>
 
@@ -25,7 +26,7 @@ supp_pt_locate_fault (struct supp_page_table* spt, uint8_t* upage)
       /* (1) find it from the slot */
       /* (2): obtain a frame to store the page */
       /* (3) fetch data into frame */
-      void* kpage = swap_lookup_page(upage);
+      void* kpage = swap_restore_page(upage);
       /* (4) point the page table entry for the faulting virtual address to frame */
       evicted[upage/PGSIZE] = 0;
       res = pagedir_set_page (spt->pagedir, upage, free_frame, writable);
