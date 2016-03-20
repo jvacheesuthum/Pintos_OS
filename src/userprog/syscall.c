@@ -62,6 +62,10 @@ syscall_handler (struct intr_frame *f)
   unsigned* uptr;
   void* endofbuff;
 
+
+  //TASK 3 Stack growth, have to find syscalls that write to stack???
+
+
   switch(syscall_name){
     case SYS_EXIT:
       intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);

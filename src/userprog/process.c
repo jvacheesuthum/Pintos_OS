@@ -157,10 +157,10 @@ start_process (void *file_name_)
   //-------------ARGPASS-----------------//
 
   if (success) {
+   
     push_stack(&if_.esp, file_name_len + 1);
-
-    origin = if_.esp;
     memcpy (if_.esp, file_name, file_name_len + 1);
+    origin = if_.esp;
 
     //round down to a multiple of 4
     push_stack(&if_.esp, (INSTR_SIZE - ((file_name_len + 1) % INSTR_SIZE)));
@@ -172,7 +172,7 @@ start_process (void *file_name_)
     //push elem right to left
     for (i = argc - 1; i >= 0; i--) {
       push_stack(&if_.esp, INSTR_SIZE);
-      *(char **) if_.esp = origin + offsets[i];
+      *(char **) if_.esp =  origin + offsets[i]; 
     }
     //argv points to arg_list[0]
     push_stack(&if_.esp, INSTR_SIZE);
