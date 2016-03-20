@@ -131,35 +131,42 @@ supp_page_table_add (tid_t tid, void* raw_upage)
   }
   return true;
 }
-//--------------------------------//
+
+void
+per_process_cleanup(struct list* per_process_upages)
+{
+  struct list_elem *e;
+  e = list_begin(per_process_upages);
+
+  while(e != list_end(per_process_upages))
+  {
+    void* kapge = page_table_get_kpage (e->upage);
+    palloc_free_page (kpage);
+    struct list_elem* prev = e;
+    e = list_next(e)
+    free(list_entry(prev));
+  }
+}
 
 
-/* See 5.1.4 : (called from pagefault handler) 
+//--------------- helper functions -----------------//
+/* See 5.1.4 :  
  * returns the location of the data belongs to upage that causes pagefault */
-// TODO: please return null when spt->evicted[upage/PGSIZE] == 0
 void*
-supp_pt_locate_fault (struct supp_page_table* spt, uint8_t* upage)
+supp_pt_locate_fault (uint8_t* upage)
 {
   
   if(is_user_vaddr(upage)){
-    if(spt->evicted[upage/PGSIZE] == 1){
-      /* page is now in swap slot (provided swap slot is the only place we evict data to) */
-      /* (1) find it from the slot */
-      /* (2): obtain a frame to store the page */
-      /* (3) fetch data into frame */
-      void* kpage = swap_restore_page(upage);
-      /* (4) point the page table entry for the faulting virtual address to frame */
-      evicted[upage/PGSIZE] = 0;
-      res = pagedir_set_page (spt->pagedir, upage, free_frame, writable);
-      if(!res){
-        ASSERT (false); // panics, will this ever happen?
-      }
-      return kpage;
-    }
+    /* page is now in swap slot (provided swap slot is the only place we evict data to) */
+    /* (1) find it from the slot : done in swap_restore_page => swap_hash_table_remove*/
+    /* (2): obtain a frame to store the page: done in swap_restore_page => frame_get_page*/
+    /* (3) fetch data into frame : done in swap_restore_page */
+    /* (4) point the page table entry for the faulting virtual address to frame : done in swap_restore_page => frame_get_page*/
+    void* kpage = swap_restore_page(upage);
+    return kpage;
   } 
-  // todo: check if fault causes by writing to read-only page is already covered here. (it should)
+  // TODO: check if fault causes by writing to read-only page is already covered here. (it should)
   process_exit();
 }
-
 
 

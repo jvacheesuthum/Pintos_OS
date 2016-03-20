@@ -63,12 +63,19 @@ evict(uint8_t *newpage)
 // only for user processes. 
 //kernel should directly use palloc get page as original
 void* 
-frame_get_page(uint8_t *upage, enum palloc_flags flags)
+frame_get_page(void* raw_upage, enum palloc_flags flags)
 {
   ASSERT (flags & PAL_USER)
+  void* upage = pg_round_down (raw_upage); 
 
   void* result = palloc_get_page(flags);
-  
+ 
+  //updating page tables and per_process_upages list
+  struct per_process_upages_elem* el = malloc(sizeof(struct per_process_upages_elem));
+  el->upage = upage;
+  list_push_back(&thread_current()->per_process_upages_elem, &el->elem);
+  supp_table_add(thread_current()->tid, upage);
+
 //if there is no empty frames, try to evict
   if (result == NULL) {
     void* result = evict(upage);
@@ -85,9 +92,6 @@ frame_get_page(uint8_t *upage, enum palloc_flags flags)
   entry->physical = result;
   list_push_back(&frame_table, &entry->elem);
 
-  /* 
-   * TODO:  updates supp_pagetable as well
-   */
   return result;
 
 }

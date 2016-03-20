@@ -241,6 +241,9 @@ thread_create (const char *name, int priority,
  // task 2//
   // --- //
   t->parent_process = thread_current();
+  //task3//
+  list_init(&t->per_process_upages);
+  //---//
   list_init(&t->children_processes);
   if(thread_current() == initial_thread){
     list_init(&thread_current()->children_processes);
