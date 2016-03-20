@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include <debug.h>
+#include "threads/thread.h"
 
 #include "vm/swap.h"
 
@@ -33,7 +34,7 @@ init_swap_table(void)
 
 // saves data from frame address kpage into the swap slot
 void
-evict_to_swap(void* kpage)
+evict_to_swap(tid_t thread, uint8_t *upage, void* kpage)
 {
   //1. block_write
   //2. update swap_table 
