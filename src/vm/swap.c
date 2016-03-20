@@ -8,10 +8,16 @@
 struct swap_table
 {
   struct block* swap_block;
-  // some ways of keeing track of the used and unused space in block
-  // TODO: something like a bitmap
+  block_sector_t new_swap_slot;     /* keeps track of the next free swap slots incremented by PGSIZE/BLOCK_SECTOR_SIZE
+                            everytime a page is put into new slot of swap_block */
+  struct list free_slots; /* looks in here to see free slot first, if empty then request new slot */
   struct hash swap_hash_table;
-  struct list owner_mapping;
+}
+
+struct free_slot
+{
+  struct list_elem elem;
+  block_sector_t slot_begin;
 }
 
 static struct swap_table swap_table;
@@ -23,7 +29,7 @@ struct swap_table_entry
   struct hash_elem hash_elem;
   tid_t tid;
   void* upage; 
-  block_sector_t swap_sector;
+  block_sector_t swap_slot;
 };
 
 struct swap_table_entry*
@@ -57,14 +63,14 @@ swap_table_less (const struct hash_elem *a_, const struct hash_elem *b_,
 }
 
 struct swap_table_entry*
-swap_hash_table_lookup (const tid_t tid, const void *raw_upage)
+swap_hash_table_remove (const tid_t tid, const void *raw_upage)
 {
   struct swap_table_entry dummy;
   struct hash_elem *e;
 
   dummy.tid = tid;
   dummy.upage = pg_round_down(raw_upage);
-  e = hash_find (&swap_table->swap_hash_table, &dummy.hash_elem);
+  e = hash_delete (&swap_table->swap_hash_table, &dummy.hash_elem);
   return e != NULL ? hash_entry (e, struct swap_table_entry, hash_elem): NULL;
 }
 
@@ -74,31 +80,68 @@ void
 init_swap_table(void)
 {
   swap_table->swap_block = block_get_role(BLOCK_SWAP); 
-  // TODO:initialise the bitmap
+  swap_table->new_swap_slot = 0; 
+  list_init(&swap_table->free_slots);
   hash_init(&swap_table->swap_hash_table, swap_table_hash, swap_table_less, NULL);
 }
 
-// saves data from frame address kpage into the swap slot
+// write into swap block and insert new entry into swap_hash_table
 void
-evict_to_swap(tid_t thread, uint8_t *upage, void* kpage)
+evict_to_swap(tid_t tid, void *raw_upage, void* kpage)
 {
-  //1. block_write
-  //2. update swap_table 
-  //    - mark bitmap
-  //    - add to hashmap
+  block_sector_t free_slot = get_free_slot();
+  swap_write(free_slot, kpage);
+
+  struct swap_table_entry* ste = ste_init(thread, raw_upage);
+  ste->swap_slot = free_slot;
+  struct hash_elem* old = hash_insert(&swap_table->swap_hash_table, &ste->hash_elem);
+  if(old != NULL){
+    ASSERT (false); //probably indicates bugs
+  }
 }
 
-// looks up upage from swap slot, puts the data from swap slot to a frame and return the frame address 
-  // TODO: should be (void* upage, tid)
 void*
 swap_restore_page(void* raw_upage)
 {
-  owner_upage = convert(upage);
-  struct swap_table_entry* found_swe = swap_hash_table_lookup(thread_current()->tid, raw_upage);
+  struct swap_table_entry* found_swe = swap_hash_table_remove(thread_current()->tid, raw_upage);
   if(found_swe == NULL) { return NULL; }
-  block_sector_t sector = found_swe->swap_sector;
+  block_sector_t slot = found_swe->swap_slot;
+  free(found_swe);
 
-  void* free_frame = frame_get_page(upage, PAL_USER);
+  void* found_frame = frame_get_page(upage, PAL_USER);
+  swap_read(slot, found_frame);
+
+  struct free_slot* fs = malloc(sizeof(struct free_slot));
+  fs->slot_begin = slot;
+  list_push_back (&swap_table->free_slot, &fs->elem);
+
+  return found_frame;
+}
+
+block_sector_t
+get_free_slot(void)
+{
+  if(!list_empty(&swap_table->free_slots)){
+    struct free_slot* fs = &list_entry (list_pop_front(&swap_table->free_slots));
+    block_sector_t res = fs->slot_begin;
+    free(fs);
+    return res;
+  } else {
+    block_sector_t res = swap_table->new_swap_slot;
+    swap_table->new_swap_slot += PGSIZE/BLOCK_SECTOR_SIZE;
+    return res;
+  }
+}
+
+void 
+swap_read(block_sector_t slot_begin_sector, void* buffer)
+{
+  // TODO: read for 8 sectors
   block_read(swap_table->swap_block, sector, free_frame);
-  return free_frame;
+}
+
+void 
+swap_write(block_sector_t slot_begin_sector, void* buffer)
+{
+  //TODO: block_write for 8 sectors
 }
