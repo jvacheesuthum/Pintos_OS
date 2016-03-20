@@ -130,7 +130,12 @@ pagedir_get_page (uint32_t *pd, const void *uaddr)
     pte = lookup_page (pd, uaddr, false);
     if (pte != NULL && (*pte & PTE_P) != 0)
       return pte_get_page (*pte) + pg_ofs (uaddr);
-    }
+
+    // page is not in pagedir, but might be in swap
+    // TODO: which pd to use? thread_current-> sup pt?
+    // TODO: uaddr is void*, method wants uint8_t*. cast or change method? 
+    return supp_pt_locate_fault(pd, uaddr)
+   }
   return NULL;
 }
 
