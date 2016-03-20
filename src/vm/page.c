@@ -51,4 +51,3 @@ supp_pt_destroy (struct supp_page_table* spt) {
   // TODO: free other pages that is marked true in evicted array 
 }
 
-
