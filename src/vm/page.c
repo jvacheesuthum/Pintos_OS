@@ -15,6 +15,7 @@ supp_pt_init (struct supp_page_table* spt)
 
 /* See 5.1.4 : (called from pagefault handler) 
  * returns the location of the data belongs to upage that causes pagefault */
+// TODO: please return null when spt->evicted[upage/PGSIZE] == 0
 void*
 supp_pt_locate_fault (struct supp_page_table* spt, uint8_t* upage)
 {

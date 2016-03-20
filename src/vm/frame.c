@@ -34,7 +34,7 @@ evict(uint8_t *newpage)
 
   struct list_elem* e = list_begin(&frame_table);
   struct frame* toevict = list_entry(e, struct frame, elem);
-// TODO: use supp page table
+// TODO: use supp page table : pd
   uint32_t *pd = (get_thread(toevict->thread))->pagedir;
   while (pagedir_is_accessed(pd, toevict->upage))
   {

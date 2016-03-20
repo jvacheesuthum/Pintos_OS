@@ -43,6 +43,7 @@ evict_to_swap(tid_t thread, uint8_t *upage, void* kpage)
 }
 
 // looks up upage from swap slot, puts the data from swap slot to a frame and return the frame address 
+  // TODO: should be (void* upage, tid)
 void*
 swap_restore_page(void* upage)
 {
