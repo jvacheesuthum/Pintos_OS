@@ -4,21 +4,22 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "vm/frame.h"
-#include "thread/vaddr.h"
+#include "threads/vaddr.h"
+#include "list.h"
 
 struct supp_page_table {
   struct hash page_table;
-}
+};
 
 struct page 
 {
   tid_t tid;
   void* upage;
   void* kpage;
-}
+};
 
 void init_page(struct page* p, tid_t owner_tid, void* raw_upage);
-void* supp_pt_locate (struct supp_page_tabl* spt, euint8_t* upage);
+void* supp_pt_locate (struct supp_page_tabl* spt, uint8_t* upage);
 
 void* page_table_get_kpage (void* raw_upage); // for process to use; given upage returns kpage
 bool supp_page_table_remove (tid_t tid, void* raw_upage); // for frame.c to use when evict 
@@ -28,6 +29,6 @@ void per_process_cleanup (struct list* per_process_upages); // called at process
 struct per_process_upages_elem
 {
   void* upage; //upage address that is already rounded down
-  list_elem elem;
+  struct list_elem elem;
 }
 #endif

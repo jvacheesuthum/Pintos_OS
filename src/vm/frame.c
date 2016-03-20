@@ -5,6 +5,7 @@
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
 #include "vm/swap.h"
+#include "vm/page.h"
 #include <stddef.h>
 #include <debug.h>
 
@@ -49,8 +50,7 @@ evict(uint8_t *newpage)
   // found unaccessed page, evict
   list_remove(e);
   // remove pagedir entry for evicted page
-// TODO: use vasin's function
-  pagedir_clear_page(pd, toevict->upage);
+  supp_page_table_remove (toevict->thread, toevict->upage);
   // place contenets into swap. should need to save the thread and upage too.
   evict_to_swap(toevict->thread, toevict->upage, toevict->physical);
   // change frame to newpage
