@@ -33,9 +33,9 @@ struct swap_table_entry
 };
 
 struct swap_table_entry*
-ste_init(tid_t tid, void* raw_upage)
+ste_malloc_init(tid_t tid, void* raw_upage)
 {
-  struct swap_table_entry* entry = malloc(sizeof swap_table_entry);
+  struct swap_table_entry* entry = malloc(sizeof(struct swap_table_entry));
   res->upage = pg_round_down (raw_upage);
   return entry; 
 }
@@ -92,7 +92,7 @@ evict_to_swap(tid_t tid, void *raw_upage, void* kpage)
   block_sector_t free_slot = get_free_slot();
   swap_write(free_slot, kpage);
 
-  struct swap_table_entry* ste = ste_init(thread, raw_upage);
+  struct swap_table_entry* ste = ste_malloc_init(thread, raw_upage);
   ste->swap_slot = free_slot;
   struct hash_elem* old = hash_insert(&swap_table->swap_hash_table, &ste->hash_elem);
   if(old != NULL){

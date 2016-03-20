@@ -58,7 +58,6 @@ evict(uint8_t *newpage)
   list_push_back(&frame_table, e);
 
   return toevict->physical;
-// TODO: update evicted array in supp table as well
 }
 
 // only for user processes. 
@@ -75,7 +74,6 @@ frame_get_page(uint8_t *upage, enum palloc_flags flags)
     void* result = evict(upage);
   // if eviction was not successfull, panic
     ASSERT (result != NULL);
-        // TODO: update evicted array in supp table as well
   // no need to add entry.
     return result;
   }
