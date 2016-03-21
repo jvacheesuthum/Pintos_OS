@@ -28,13 +28,13 @@ static int write (int fd, const void *buffer, unsigned size);
 static void seek (int fd, unsigned position, struct intr_frame *f);
 static unsigned tell (int fd, struct intr_frame *f);
 static void close (int fd, struct intr_frame *f);
-static mapid_t mmap (int fd, void *addr);
-static void munmap (mapid_t mapping);
+//static mapid_t mmap (int fd, void *addr);
+//static void munmap (mapid_t mapping);
 struct file_map* get_file_map(int fd); 
-struct mem_map* get_mem_map (mapid_t mapping);
+//struct mem_map* get_mem_map (mapid_t mapping);
 struct lock file_lock; 
-unsigned mapid_hash (const struct hash_elem *p, void *aux UNUSED);
-bool mapid_less (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
+//unsigned mapid_hash (const struct hash_elem *p, void *aux UNUSED);
+//bool mapid_less (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
 
 
 void
@@ -67,7 +67,7 @@ syscall_handler (struct intr_frame *f)
   unsigned* uptr;
   void* endofbuff;
   void* addrptr;
-  mapid_t* mapidptr;
+  //mapid_t* mapidptr;
 
 
   //TASK 3 Stack growth, have to find syscalls that write to stack???
