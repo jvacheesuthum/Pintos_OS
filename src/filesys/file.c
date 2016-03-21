@@ -166,3 +166,9 @@ file_tell (struct file *file)
   ASSERT (file != NULL);
   return file->pos;
 }
+
+unsigned
+file_size(struct file *file){
+  ASSERT(file != NULL);
+  return inode_length(file-> inode);
+}
