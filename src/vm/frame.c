@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <debug.h>
 
-void frame_free_page(tid_t thread, uint8_t* upage, void* kpage);
+void frame_free_page(tid_t thread);
 void frame_pin_page(tid_t thread, uint8_t* upage);
 void* evict(uint8_t *newpage);
 
