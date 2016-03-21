@@ -1,7 +1,9 @@
 #include <stddef.h>
 #include <debug.h>
 #include "threads/thread.h"
-
+#include "devices/block.h"
+#include "hash.h"
+#include "threads/malloc.h"
 #include "vm/swap.h"
 
 
@@ -12,13 +14,13 @@ struct swap_table
                             everytime a page is put into new slot of swap_block */
   struct list free_slots; /* looks in here to see free slot first, if empty then request new slot */
   struct hash swap_hash_table;
-}
+};
 
 struct free_slot
 {
   struct list_elem elem;
   block_sector_t slot_begin;
-}
+};
 
 static struct swap_table swap_table;
 

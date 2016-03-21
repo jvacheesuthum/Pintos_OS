@@ -190,6 +190,7 @@ supp_pt_locate_fault (void* upage)
   } 
   // TODO: check if fault causes by writing to read-only page is already covered here. (it should)
   process_exit();
+  return NULL;
 }
 
 struct supp_page_table*
@@ -197,7 +198,10 @@ spt_create ()
 {
   struct supp_page_table* spt = malloc (sizeof(struct supp_page_table));
   spt->pagedir = pagedir_create();
-  spt->evicted = {0};
+  int i;
+  for(i = 0; i < PG_TOTAL; i++){
+    spt->evicted[i] = 0;
+  }
   return spt;
 }
 
