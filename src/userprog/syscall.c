@@ -12,7 +12,7 @@
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
 #include "lib/string.h"
-
+#include "vm/page.h"
 static void syscall_handler (struct intr_frame *);
 
 
@@ -52,7 +52,7 @@ syscall_handler (struct intr_frame *f)
    */
 
   // refer to page37 specs // or use esp as int* sys_name as seen in lib/user/syscall.c
-  void *esp = pagedir_get_page(thread_current()->pagedir, f->esp);
+  void *esp = pagedir_get_page(thread_current()-> supp_page_table-> pagedir, f->esp);
   if (esp == NULL || 
      esp < PHYS_BASE) {
        exit(RET_ERROR, f);
@@ -75,15 +75,15 @@ syscall_handler (struct intr_frame *f)
 
   switch(syscall_name){
     case SYS_EXIT:
-      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      intptr = pagedir_get_page(thread_current()-> supp_page_table-> pagedir, f->esp + INSTR_SIZE);
       if (intptr == NULL) exit(RET_ERROR, f);
       exit(*(intptr),f);
       break;
     case SYS_WRITE:
-      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
-      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
-      uptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*3);
-      endofbuff = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2 + *uptr);
+      intptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE);
+      charptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE*2);
+      uptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE*3);
+      endofbuff = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE*2 + *uptr);
       if (intptr == NULL || charptr == NULL || uptr == NULL) exit(RET_ERROR, f);
       f->eax = write(*(intptr), *(charptr), *(uptr));
       break;
@@ -91,68 +91,68 @@ syscall_handler (struct intr_frame *f)
       halt();
       break;
     case SYS_EXEC:
-      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      charptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE);
       if (charptr == NULL) exit(RET_ERROR, f);
       f->eax = exec (*(charptr));
       break;
     case SYS_WAIT:
-      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      intptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE);
       if (intptr == NULL) exit(RET_ERROR, f);
       f->eax = wait (* (intptr));
       break;
     case SYS_CREATE:
-      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
-      uptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
+      charptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE);
+      uptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE*2);
       if (charptr == NULL || uptr == NULL) exit(RET_ERROR, f);
       f->eax = create(*(charptr), *(uptr));
       break;
     case SYS_REMOVE:
-      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      charptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE);
       if (charptr == NULL) exit(RET_ERROR, f);
       f->eax = remove(*(charptr),f);
       break;
     case SYS_OPEN:
-      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      charptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE);
       if (charptr == NULL) exit(RET_ERROR, f);
       f->eax = open(*(charptr));
       break;
     case SYS_FILESIZE:
-      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      intptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE);
       if (intptr == NULL) exit(RET_ERROR, f);
       f->eax = filesize(*(intptr)); 
       break;
     case SYS_READ:
-      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
-      charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
-      uptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*3);
-      endofbuff = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2 + *uptr);
+      intptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE);
+      charptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE*2);
+      uptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE*3);
+      endofbuff = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE*2 + *uptr);
       if (intptr == NULL || charptr == NULL || uptr == NULL) exit(RET_ERROR, f);
       f->eax = read(*(intptr), *(charptr), *(uptr));
       break;
     case SYS_SEEK:
-      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
-      uptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
+      intptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE);
+      uptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE*2);
       if (intptr == NULL || uptr == NULL) exit(RET_ERROR, f);
       seek(*(intptr), *(uptr), f);
       break;
     case SYS_TELL:
-      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      intptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE);
       if (intptr == NULL) exit(RET_ERROR, f);
       f->eax = tell(*(intptr), f);
       break;
     case SYS_CLOSE:
-      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      intptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE);
       if (intptr == NULL) exit(RET_ERROR, f);
       close(*(intptr), f); 
       break;
     case SYS_MMAP:
-      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
-      addrptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
+      intptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE);
+      addrptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE*2);
       if (intptr == NULL || addrptr == NULL) exit(RET_ERROR, f);
       f->eax = mmap(*(intptr), (addrptr));
       break;
     case SYS_MUNMAP:
-      mapidptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      mapidptr = pagedir_get_page(thread_current()->supp_page_table-> pagedir, f->esp + INSTR_SIZE);
       if (intptr == NULL) exit(RET_ERROR, f);
       munmap(*mapidptr);
       break;
