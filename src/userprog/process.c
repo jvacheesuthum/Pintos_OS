@@ -312,11 +312,6 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  if(cur_spt != NULL)
-  {
-    spt_destroy(cur_spt);
-  }
-    
   //allows write to executable file after exit -----
   if (cur-> execfile != NULL) {
     file_allow_write(cur-> execfile);
