@@ -53,7 +53,7 @@ evict(uint8_t *newpage)
   // remove pagedir entry for evicted page
   pagedir_clear_page(pd, toevict->upage);
   // mark sup pt evicted.
-  (get_thread(toevict->thread))->supp_page_table->evicted[(uint32_t)(toevict->upage)/PG_SIZE] = 1;
+  spt_mark_evicted(toevict->thread, toevict->upage);
   // place contenets into swap. should need to save the thread and upage too.
   evict_to_swap(toevict->thread, toevict->upage, toevict->physical);
   // change frame to newpage
@@ -100,8 +100,6 @@ frame_get_page(void* raw_upage, enum palloc_flags flags)
   //updating supp_page_table of current process
   uint32_t* pd = thread_current()->supp_page_table->pagedir;
   pagedir_set_page(pd, upage, result, true ); // TODO: check if writable is actually true
-  // TODO: do we need to mark evicted = 0 when create?
-  thread_current()->supp_page_table->evicted[(uint32_t)upage/PG_SIZE] = 0;
   return result;
 
 }
