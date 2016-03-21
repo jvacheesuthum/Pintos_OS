@@ -69,6 +69,10 @@ syscall_handler (struct intr_frame *f)
   void* addrptr;
   mapid_t* mapidptr;
 
+
+  //TASK 3 Stack growth, have to find syscalls that write to stack???
+
+
   switch(syscall_name){
     case SYS_EXIT:
       intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
@@ -80,7 +84,7 @@ syscall_handler (struct intr_frame *f)
       charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
       uptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*3);
       endofbuff = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2 + *uptr);
-      if (intptr == NULL || charptr == NULL || uptr == NULL || endofbuff == NULL) exit(RET_ERROR, f);
+      if (intptr == NULL || charptr == NULL || uptr == NULL) exit(RET_ERROR, f);
       f->eax = write(*(intptr), *(charptr), *(uptr));
       break;
     case SYS_HALT:
@@ -122,7 +126,7 @@ syscall_handler (struct intr_frame *f)
       charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
       uptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*3);
       endofbuff = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2 + *uptr);
-      if (intptr == NULL || charptr == NULL || uptr == NULL || endofbuff == NULL) exit(RET_ERROR, f);
+      if (intptr == NULL || charptr == NULL || uptr == NULL) exit(RET_ERROR, f);
       f->eax = read(*(intptr), *(charptr), *(uptr));
       break;
     case SYS_SEEK:

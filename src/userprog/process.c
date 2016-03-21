@@ -52,7 +52,7 @@ process_execute (const char *file_name)
       return TID_ERROR;
    }
 //  strlcpy (fn_copy2, file_name, PGSIZE);
-  memcpy (fn_copy2, file_name, strlen(file_name) + 1);
+  strlcpy (fn_copy2, file_name, strlen(file_name) + 1);
   file_name = strtok_r (fn_copy2, " ", &save_ptr);
   //---------------------------------------//
 
@@ -99,6 +99,12 @@ process_execute (const char *file_name)
   return tid;
 }
 
+void 
+push_stack(void **esp, int offset) {
+  *esp -= offset;
+  if(!is_user_vaddr (*esp)) exit(RET_ERROR, NULL);
+}
+
 /* A thread function that loads a user process and starts it
    running. */
 static void
@@ -138,53 +144,66 @@ start_process (void *file_name_)
   }
  
   //calculate the offsets and argument count
+  int offset;
   offsets[0] = 0;
-  for (token = strtok_r (file_name, " ", &save_ptr);
-       token != NULL;
-       token = strtok_r (NULL, " ", &save_ptr)) {
-    while (*save_ptr == ' ') save_ptr++;
+  //use token pointer to calculate offsets
+  token = strtok_r (file_name, " ", &save_ptr);
+  argc++;
+  token = strtok_r (NULL, " ", &save_ptr);
+  if (token != NULL) {
+    //one or more arg
+    offset = token - file_name;
+    offsets[argc] = offset;
+  } else {
+    //no arg
+    offset = save_ptr - file_name;
+    offsets[argc] = offset;
+  }
+  
+  while(token != NULL) {
+    token = strtok_r (NULL, " ", &save_ptr);
+    offset = token - file_name;
     argc++;
-    offsets[argc] = save_ptr - file_name; 
-  }  
+    offsets[argc] = offset;
+  } 
   //-------------------------------------//
   success = load (file_name, &if_.eip, &if_.esp);
   //-------------ARGPASS-----------------//
 
   if (success) {
-    if_.esp -= file_name_len + 1;
+
+    int push_size;
+    int int_size = sizeof(int);
+
+    push_size = file_name_len + 1;
+    push_stack(&if_.esp, push_size);
+    memcpy (if_.esp, file_name, push_size);
     origin = if_.esp;
-    memcpy (if_.esp, file_name, file_name_len + 1);
 
-    //round down to a multiple of 4
-    if_.esp -= INSTR_SIZE - ((file_name_len + 1) % INSTR_SIZE);
+    //push stack for arguments all at once along with rounding
+    push_size = (*(uint32_t *)if_.esp % int_size) 
+                 + (argc + 1) * int_size;
+    push_stack(&if_.esp, push_size);
+    *(int *) (if_.esp + argc * int_size) = 0;
 
-    //0 for arg_list[argc] and word-align
-    if_.esp -= INSTR_SIZE;
-    *(int *) if_.esp = 0;
-   
     //push elem right to left
     for (i = argc - 1; i >= 0; i--) {
-      if_.esp -= INSTR_SIZE;
-      *(char **) if_.esp = origin + offsets[i];
+      *(char **) (if_.esp + i * int_size) =  origin + offsets[i]; 
     }
-    //argv points to arg_list[0]
-    if_.esp -= INSTR_SIZE;
-    *(char **) if_.esp = if_.esp + INSTR_SIZE;
-    //pushing argc
-    if_.esp -= INSTR_SIZE;
-    *(int *)if_.esp = argc;
-    //return addr
-    if_.esp -= INSTR_SIZE;
-    *(int *)if_.esp = 0;
-  
-     
+
+    //pushes arg_list[0], argc, return addr (check all at once)
+    push_size = 3 * int_size;
+    push_stack(&if_.esp, push_size);
+    *(int *) if_.esp = 0;
+    *(int *) (if_.esp + int_size) = argc;
+    *(int *) (if_.esp + 2 * int_size) = if_.esp + push_size;
+
     //this denies write to executable file if success --------------
     lock_acquire(&file_lock);
     thread_current()-> execfile = filesys_open(file_name);
     lock_release(&file_lock);
     file_deny_write(thread_current()-> execfile);
   } 
-
   free (offsets);
 
   /* If load failed, quit. */
@@ -603,8 +622,20 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /* Get a page of memory. */
       uint8_t *kpage = frame_get_page (upage, PAL_USER);
-      if (kpage == NULL)
-        return false;
+//      if (kpage == NULL)
+//        return false;
+
+      //---------Paging-----------------//
+      if (page_read_bytes == PGSIZE) {
+        //TODO: page should be demand paged from the underlying file on its first access
+      } else
+      if (page_zero_bytes == PGSIZE) {
+         
+      } else {
+
+      }
+
+      //--------------------------------//
 
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
