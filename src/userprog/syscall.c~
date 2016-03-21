@@ -69,6 +69,10 @@ syscall_handler (struct intr_frame *f)
   void* addrptr;
   mapid_t* mapidptr;
 
+
+  //TASK 3 Stack growth, have to find syscalls that write to stack???
+
+
   switch(syscall_name){
     case SYS_EXIT:
       intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
@@ -80,7 +84,7 @@ syscall_handler (struct intr_frame *f)
       charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
       uptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*3);
       endofbuff = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2 + *uptr);
-      if (intptr == NULL || charptr == NULL || uptr == NULL || endofbuff == NULL) exit(RET_ERROR, f);
+      if (intptr == NULL || charptr == NULL || uptr == NULL) exit(RET_ERROR, f);
       f->eax = write(*(intptr), *(charptr), *(uptr));
       break;
     case SYS_HALT:
@@ -122,7 +126,7 @@ syscall_handler (struct intr_frame *f)
       charptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
       uptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*3);
       endofbuff = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2 + *uptr);
-      if (intptr == NULL || charptr == NULL || uptr == NULL || endofbuff == NULL) exit(RET_ERROR, f);
+      if (intptr == NULL || charptr == NULL || uptr == NULL) exit(RET_ERROR, f);
       f->eax = read(*(intptr), *(charptr), *(uptr));
       break;
     case SYS_SEEK:
@@ -150,7 +154,7 @@ syscall_handler (struct intr_frame *f)
     case SYS_MUNMAP:
       mapidptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
       if (intptr == NULL) exit(RET_ERROR, f);
-      f->eax = munmap((*mapidptr));
+      munmap(*mapidptr);
       break;
     default:
       break;
@@ -367,7 +371,7 @@ mmap (int fd, void *addr) {
   //check out spec 5.3.4 for "stick out" part
   while (size > 0) {
  //mapped overlaps existing pages -> retrieve the addr and see if there anything in there - not sure
-    if (pagedir_get_page(thread_current()-> supp_pagetable-> pagedir, addr) != NULL) {
+    if (pagedir_get_page(thread_current()-> pagedir, addr) != NULL) {
       return -1;
     }
     if (size > PGSIZE) {
@@ -401,7 +405,7 @@ munmap (mapid_t mapping) {
   void* start = map-> start;
   void* end = map-> end;
   for (start; start < end; start += PGSIZE) {
-    void* pg_addr = pagedir_get_page(thread_current()-> supp_pagetable-> pagedir, map->start);
+    void* pg_addr = pagedir_get_page(thread_current()-> pagedir, map->start);
     //TODO ^^^ replace supppagetable with real one in thread.h
     if (pg_addr == NULL) {
       continue;              //page might already be freed by some other method, keep checking until the end

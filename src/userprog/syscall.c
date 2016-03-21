@@ -371,7 +371,7 @@ mmap (int fd, void *addr) {
   //check out spec 5.3.4 for "stick out" part
   while (size > 0) {
  //mapped overlaps existing pages -> retrieve the addr and see if there anything in there - not sure
-    if (pagedir_get_page(thread_current()-> supp_pagetable-> pagedir, addr) != NULL) {
+    if (pagedir_get_page(thread_current()-> supp_page_table-> pagedir, addr) != NULL) {
       return -1;
     }
     if (size > PGSIZE) {
@@ -405,7 +405,7 @@ munmap (mapid_t mapping) {
   void* start = map-> start;
   void* end = map-> end;
   for (start; start < end; start += PGSIZE) {
-    void* pg_addr = pagedir_get_page(thread_current()-> supp_pagetable-> pagedir, map->start);
+    void* pg_addr = pagedir_get_page(thread_current()-> supp_page_table-> pagedir, map->start);
     //TODO ^^^ replace supppagetable with real one in thread.h
     if (pg_addr == NULL) {
       continue;              //page might already be freed by some other method, keep checking until the end
