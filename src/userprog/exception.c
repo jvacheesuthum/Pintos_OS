@@ -206,7 +206,7 @@ page_fault (struct intr_frame *f)
       }
       if (kpage == NULL) exit(-1, NULL);
       void *upage = f->esp - ((uint32_t) f->esp % PGSIZE) - (pgcount) * PGSIZE;
-      set = pagedir_set_page (thread_current()-> supp_page_table-> pagedir, upage, kpage, true);
+      set = pagedir_set_page (thread_current()-> pagedir, upage, kpage, true);
       if (!set) exit(-1, NULL);
       pgcount ++;
     }
@@ -218,7 +218,7 @@ page_fault (struct intr_frame *f)
     if (user && !is_user_vaddr (f->esp)) exit(-1, NULL);
 //    printf("upage: %p\n", upage);
 //    printf("f->esp: %p\n", f->esp);
-    set = pagedir_set_page (thread_current()-> supp_page_table-> pagedir, upage, kpage, true);
+    set = pagedir_set_page (thread_current()-> pagedir, upage, kpage, true);
     return;
   } else {
     exit(-1, NULL);
