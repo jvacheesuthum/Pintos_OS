@@ -125,10 +125,12 @@ struct thread
 
     struct list files;                   //list of open files in user program
     int next_fd;                        //next available fd for opening files in user program
-    int next_mapid;                     //next available mapid for mapping files to memory
     struct file *execfile;
 #endif
-
+#ifdef VM
+    int next_mapid;                     //next available mapid for mapping files to memory
+    struct hash mmap_table;             //table for memory mapped files
+#endif
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

@@ -136,7 +136,17 @@ syscall_handler (struct intr_frame *f)
       if (intptr == NULL) exit(RET_ERROR, f);
       close(*(intptr), f); 
       break;
-
+    case SYS_MMAP:
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      addrptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE*2);
+      if (intptr == NULL || addrptr == NULL) exit(RET_ERROR, f);
+      f->eax = mmap(*(intptr), *(addrptr));
+      break;
+    case SYS_MUNMAP:
+      intptr = pagedir_get_page(thread_current()->pagedir, f->esp + INSTR_SIZE);
+      if (intptr == NULL) exit(RET_ERROR, f);
+      f->eax = munmap(* (intptr));
+      break;
     default:
       break;
   }
@@ -356,11 +366,14 @@ mmap (int fd, void *addr) {
       return -1;
     }
     if (size > PGSIZE) {
-      //TODO write to one page at addr
+      //TODO write to one page at addr - dont think its just file read tho....
+      file_read(opening, addr, PGSIZE);
       addr += PGSIZE
       size -= PGSIZE
     } else {
-    
+      file_read(opening, addr, size);
+      addr += size
+      break;
     }
   }  
   struct mem_map *memmap = (struct mem_map *) malloc (sizeof (struct mem_map));
@@ -372,13 +385,13 @@ mmap (int fd, void *addr) {
   memmap-> fd = fd
   memmap-> mapid = thread_current()-> next_mapid;             //defined in struct thread
   thread_current()-> next_mapid++;
-  hash_insert(mmap_table, memmap-> hashelem); //TODO define the hash - mmap_table and init somewhere
+  hash_insert(mmap_table, memmap-> hashelem); //hash init in thread.c
 }
 
 static void
 munmap (mapid_t mapping) {
   struct mem_map *map = get_mem_map(mapping);
-  if (map == NULL) return;          //or exit -1 here?
+  if (map == NULL) exit(-1, NULL);
   void* start = map-> start;
   void* end = map-> end;
   for (start; start < end; start += PGSIZE) {
@@ -425,7 +438,22 @@ get_mem_map (mapid_t mapping) {
   return elem != NULL ? hash_entry (elem, struct mem_map, hash_elem) : NULL;
 }
  
+//----------------hash functions for mmap_table--------------------//
 
+//returns hash int valuse of mapid of a memmap entry
+unsigned
+mapid_hash (const struct hash_elem *p, void *aux UNUSED) {
+  const struct mem_map *map = hash_entry(p, struct mem_map, hash_elem);
+  return hash_int(map-> mapid);
+}
+
+//returns true of mapid a precedes mapid b
+bool
+mapid_less (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED) {
+    const struct mem_map *mapa = hash_entry(a, struct mem_map, hash_elem);
+    const struct mem_map *mapb = hash_entry(b, struct mem_map, hash_elem);
+    return mapa-> mapid < mapb-> mapid
+}
   
   
   

@@ -255,8 +255,11 @@ thread_create (const char *name, int priority,
   // -- file handling -- //
   list_init(&t->files);
   t -> next_fd = 2;      
-  t -> next_mapid = 1;     
   //-----------------------------//
+#endif
+#ifdef VM
+  t -> next_mapid = 1;     
+  hash_init(&mmap_table, mapid_hash, mapid_less , NULL);
 #endif
   return tid;
 }

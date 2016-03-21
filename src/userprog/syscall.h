@@ -7,8 +7,13 @@
 void syscall_init (void);
 void exit (int, struct intr_frame *);
 extern struct lock file_lock;   //lock for manipulating files in process
-
+#ifdef VM
+//----hash functions---//
+unsigned mapid_hash (const struct hash_elem *p, void *aux UNUSED);
+bool mapid_less (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
+//------------------------//
 typedef int mapid_t;
+#endif
 typedef int pid_t;
 struct file_map             //use to map fd to the real pointer to file for read/write
 {
