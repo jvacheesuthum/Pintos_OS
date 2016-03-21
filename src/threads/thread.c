@@ -259,7 +259,7 @@ thread_create (const char *name, int priority,
 #endif
 #ifdef VM
   t -> next_mapid = 1;     
-  hash_init(&mmap_table, mapid_hash, mapid_less , NULL);
+  hash_init(&t-> mmap_table, mapid_hash, mapid_less , NULL);
 #endif
   return tid;
 }
