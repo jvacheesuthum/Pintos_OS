@@ -424,9 +424,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   int i;
 
   /* Allocate and activate page directory. */
-  // TODO: which one?
-  //t->supp_page_table = spt_init();
-  t->supp_page_table = spt_create();
+  t->pagedir = pagedir_create();
   if (t->supp_page_table->pagedir == NULL) 
     goto done;
   process_activate ();
