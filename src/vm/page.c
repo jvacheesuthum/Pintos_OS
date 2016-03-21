@@ -124,7 +124,7 @@ supp_page_table_remove (tid_t tid, void* raw_upage)
   return true;
 }
 */
-
+/*
 bool
 supp_page_table_remove (tid_t tid, void* upage)
 {
@@ -134,7 +134,7 @@ supp_page_table_remove (tid_t tid, void* upage)
   // TODO: return what?
   return true;
 }
-
+*/
 /* For frame.c to use when getting new page. Given tid and upage, add entry to page table */
 /*
 bool
@@ -197,9 +197,10 @@ struct supp_page_table*
 spt_create ()
 {
   struct supp_page_table* spt = malloc (sizeof(struct supp_page_table));
+  spt->evicted = malloc(sizeof (bool) * PG_TOTAL);
   spt->pagedir = pagedir_create();
   int i;
-  for(i = 0; i < PG_TOTAL; i++){
+  for(i = 0;(uint32_t) i < PG_TOTAL; i++){
     spt->evicted[i] = 0;
   }
   return spt;
@@ -209,5 +210,6 @@ void
 spt_destroy (struct supp_page_table* spt)
 {
   per_process_cleanup_swap();
+  free(spt->evicted);
   free(spt);
 }

@@ -21,9 +21,9 @@ struct supp_page_table {
 //      the original pagedir_get_page first
 struct supp_page_table {
   uint32_t* pagedir;
-  bool evicted[PG_TOTAL]; 
+  bool* evicted;  // pointer to array bool evicted[PG_TOTAL] 
 };
-struct supp_page_table* spt_create();
+struct supp_page_table* spt_create(void);
 void spt_destroy (struct supp_page_table* spt);
 
 /*

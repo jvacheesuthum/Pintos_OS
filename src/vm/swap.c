@@ -9,6 +9,7 @@
 #include "vm/swap.h"
 #include "vm/page.h"
 #include "list.h"
+#include "devices/block.h"
 
 
 struct swap_table
@@ -29,8 +30,12 @@ struct free_slot
 static struct swap_table swap_table;
 
 //prototypes
+struct swap_table_entry* ste_malloc_init(tid_t tid, void* raw_upage);
+unsigned swap_table_hash (const struct hash_elem *ste_, void *aux UNUSED);
+bool swap_table_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux UNUSED);
+struct swap_table_entry* swap_hash_table_remove (const tid_t tid, const void *raw_upage);
 
-struct block_sector_t get_free_slot(void);
+block_sector_t get_free_slot(void);
 void swap_read(block_sector_t slot_begin_sector, void* buffer);
 void swap_write(block_sector_t slot_begin_sector, void* buffer);
 
@@ -49,6 +54,7 @@ struct swap_table_entry*
 ste_malloc_init(tid_t tid, void* raw_upage)
 {
   struct swap_table_entry* entry = malloc(sizeof(struct swap_table_entry));
+  entry->tid = tid;
   entry->upage = pg_round_down (raw_upage);
   return entry; 
 }
@@ -135,7 +141,7 @@ swap_restore_page(void* raw_upage)
   return found_frame;
 }
 
-struct block_sector_t
+block_sector_t
 get_free_slot(void)
 {
   if(!list_empty(&swap_table.free_slots)){
@@ -154,7 +160,7 @@ void
 swap_read(block_sector_t slot_begin_sector, void* buffer)
 {
   // TODO: read for 8 sectors
-  block_read(swap_table.swap_block, sector, free_frame);
+  //block_read(swap_table.swap_block, sector, free_frame);
 }
 
 void 
@@ -168,10 +174,10 @@ per_process_cleanup_swap()
 {
   struct supp_page_table* spt = thread_current()->supp_page_table;
   int i;
-  for(i = 0; i < PG_TOTAL; i++){
+  for(i = 0; (uint32_t) i < PG_TOTAL; i++){
     if(spt->evicted[i] == 1){
       //remove entry from hash table
-      void* upage = i*PG_SIZE;
+      void* upage = ((uint32_t)i)*PG_SIZE;
       struct swap_table_entry* found_swe = swap_hash_table_remove(thread_current()->tid, upage);
       block_sector_t slot = found_swe->swap_slot;
       free(found_swe);

@@ -9,6 +9,8 @@
 #include <stddef.h>
 #include <debug.h>
 
+void* evict(uint8_t *newpage);
+
 // should actually use hash but for testing correctness use list for now.
 struct frame
   {
