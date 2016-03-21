@@ -28,6 +28,7 @@
 #include "userprog/gdt.h"
 #include "userprog/syscall.h"
 #include "userprog/tss.h"
+#include "vm/page.h"
 #else
 #include "tests/threads/tests.h"
 #endif
@@ -101,6 +102,7 @@ main (void)
   paging_init ();
 
   /*task 3: init frame table*/
+  supp_page_table_init();
   frame_table_init ();
 
   /* Segmentation. */

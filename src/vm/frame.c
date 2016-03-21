@@ -9,6 +9,8 @@
 #include <stddef.h>
 #include <debug.h>
 
+void frame_free_page(tid_t thread);
+void frame_pin_page(tid_t thread, uint8_t* upage);
 void* evict(uint8_t *newpage);
 
 // should actually use hash but for testing correctness use list for now.
@@ -18,6 +20,7 @@ struct frame
     tid_t thread;
     uint8_t *upage;
     void* physical;
+    bool pinned;
   };
 
 static struct list frame_table;
@@ -38,14 +41,14 @@ evict(uint8_t *newpage)
 
   struct list_elem* e = list_begin(&frame_table);
   struct frame* toevict = list_entry(e, struct frame, elem);
-  uint32_t *pd = (get_thread(toevict->thread))->supp_page_table->pagedir; 
-  while (pagedir_is_accessed(pd, toevict->upage))
+  uint32_t *pd = (get_thread(toevict->thread))->pagedir; 
+  while (toevict->pinned || pagedir_is_accessed(pd, toevict->upage))
   {
     e = list_remove(e);
     pagedir_set_accessed(pd, toevict->upage, false);
     list_push_back(&frame_table, &toevict->elem);
     toevict = list_entry(e, struct frame, elem);
-    pd = (get_thread(toevict->thread))->supp_page_table->pagedir; 
+    pd = (get_thread(toevict->thread))->pagedir; 
   }
   
   // found unaccessed page, evict
@@ -53,7 +56,7 @@ evict(uint8_t *newpage)
   // remove pagedir entry for evicted page
   pagedir_clear_page(pd, toevict->upage);
   // mark sup pt evicted.
-  (get_thread(toevict->thread))->supp_page_table->evicted[(uint32_t)(toevict->upage)/PG_SIZE] = 1;
+  spt_mark_evicted(toevict->thread, toevict->upage);
   // place contenets into swap. should need to save the thread and upage too.
   evict_to_swap(toevict->thread, toevict->upage, toevict->physical);
   // change frame to newpage
@@ -95,13 +98,46 @@ frame_get_page(void* raw_upage, enum palloc_flags flags)
   entry->thread = thread_current()->tid;
   entry->upage = upage;
   entry->physical = result;
+  entry->pinned = false;
   list_push_back(&frame_table, &entry->elem);
 
   //updating supp_page_table of current process
-  uint32_t* pd = thread_current()->supp_page_table->pagedir;
+  uint32_t* pd = thread_current()->pagedir;
   pagedir_set_page(pd, upage, result, true ); // TODO: check if writable is actually true
-  // TODO: do we need to mark evicted = 0 when create?
-  thread_current()->supp_page_table->evicted[(uint32_t)upage/PG_SIZE] = 0;
   return result;
 
+}
+
+void 
+frame_free_page(tid_t thread)
+{
+  struct list_elem* e = list_begin(&frame_table);
+  while (e != list_end(&frame_table))
+  {
+    struct frame* inspecting = list_entry(e, struct frame, elem);
+    if (thread == inspecting->thread){
+      e = list_remove(e);
+      free(inspecting);
+    }
+    else e = list_next(e);
+  }
+}
+
+void frame_pin_page(tid_t thread, uint8_t* upage)
+{
+  struct frame* topin = NULL;
+  struct list_elem* e = list_end(&frame_table);
+  while (e != list_begin(&frame_table) && topin != NULL)
+  {
+    struct frame* inspecting = list_entry(e, struct frame, elem);
+    if (thread == inspecting->thread && upage == inspecting->upage){
+      topin = inspecting;
+    }
+    e = list_prev(e);
+  }
+
+  if (topin != NULL) {
+    topin->pinned = true;
+  }
+  else ASSERT (false);
 }
