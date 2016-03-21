@@ -371,7 +371,9 @@ mmap (int fd, void *addr) {
       addr += PGSIZE
       size -= PGSIZE
     } else {
-    
+      file_read(opening, addr, size);
+      addr += size
+      break;
     }
   }  
   struct mem_map *memmap = (struct mem_map *) malloc (sizeof (struct mem_map));
