@@ -179,7 +179,7 @@ page_fault (struct intr_frame *f)
   } else {
     printf("user = false\n");
   }
-  if (f->esp < PHYS_BASE) printf("INSIDE\n");
+//  if (f->esp < PHYS_BASE) printf("INSIDE\n");
 
   if ((f->esp == fault_addr || push_check)) {
     if ((uint32_t *)PHYS_BASE - (uint32_t *)fault_addr > STACK_LIMIT) {
