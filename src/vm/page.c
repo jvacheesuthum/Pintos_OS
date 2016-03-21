@@ -6,173 +6,136 @@
 #include "userprog/pagedir.h"
 #include <stddef.h>
 #include <debug.h>
-///// include 2 hash libs
+#include <hash.h>
+#include "lib/kernel/hash.h"
 
-// TODO: CHANGE ALL OPERATIONS WITH PAGEDIR IN PROCESS.C TO FUNCTIONS IN THIS FILE INSTEAD
-// TODO: change all reference to pagedir in process.c to spt->pagedir
-//
-/*
-static supp_page_table supp_page_table;
-*/
-/*
-void
-init_page(struct page* p, tid_t owner_tid, void* raw_upage){
-  p->tid = owner_tid;
-  p->upage = pg_round_down(raw_upage);
-}
-*/
-//---------------------------------------------------------------------- hash table functions ------- //
-/*
-struct page_table_entry
+
+// -------------------------------------------------------------------- supp page table hash table -- //
+static struct hash supp_page_table;
+
+struct spt_entry
 {
   struct hash_elem hash_elem;
-  struct page* page;
-};
+  tid_t tid;
+  struct hash* evicted;
+}
 
-struct page_table_entry*
-pte_malloc_init(struct page* p)
-{
-  struct page_table_entry* entry = malloc(sizeof(struct page_table_entry));
-  entry->page = p; 
-  return entry
-}
 unsigned 
-page_table_hash (const struct hash_elem *p_, void *aux UNUSED)
+tid_hash (const struct hash_elem *p_, void *aux UNUSED)
 {
-  const struct page_table_entry *p = hash_entry (p_, struct swap_table_entry, hash_elem);
-  return hash_bytes (&p->page->tid, sizeof p->page->tid) ^ hash_bytes (&p->page->upage, sizeof p->page->upage);
+  const struct spt_entry *p = hash_entry (p_, struct spt_entry, hash_elem);
+  return hash_bytes (&p->tid, sizeof p->tid);
 }
-*/
-/* less function for swap hash table. See spec A.8.5 */
-/*
+
 bool
-page_table_less (const struct hash_elem *a_, const struct hash_elem *b_,
+tid_less (const struct hash_elem *a_, const struct hash_elem *b_,
                   void *aux UNUSED)
 {
-  const struct swap_table_entry *a = hash_entry (a_, struct page_table_entry, hash_elem);
-  const struct swap_table_entry *b = hash_entry (b_, struct page_table_entry, hash_elem);
-
-  if(a->page->tid != b->page->tid){
-    return a->page->tid < b->page->tid;
-  }
-  return a->page->upage < b->page->upage;
+  const struct spt_entry *a = hash_entry (a_, struct spt_entry, hash_elem);
+  const struct spt_entry *b = hash_entry (b_, struct spt_entry, hash_elem);
+  return a->tid < b->tid;
 }
 
-struct page_table_entry*
-page_table_lookup (const struct page p)
+struct spt_entry*
+spt_tid_lookup (const tid_t tid)
 {
-  struct swap_table_entry dummy;
+  struct spt_entry p;
   struct hash_elem *e;
-
-  dummy.page = p;
-  e = hash_find (&supp_page_table->page_table, &dummy.hash_elem);
-  return e != NULL ? hash_entry (e, struct page_table_entry, hash_elem): NULL;
+  p.tid = tid;
+  e = hash_find (&supp_page_table, &p.hash_elem);
+  return e != NULL ? hash_entry (e, struct spt_entry, hash_elem) : NULL;
 }
 
-struct page_table_entry*
-page_table_remove (const struct page p)
+// -------------------------------- evicted hash table inside spt_entry --- //
+struct ev_entry
 {
-  struct swap_table_entry dummy;
+  struct hash_elem hash_elem;
+  void* upage;  // alreay rounded down
+}
+
+unsigned 
+ev_hash (const struct ev_entry *p_, void *aux UNUSED)
+{
+  const struct ev_entry *p = hash_entry (p_, struct ev_entry, hash_elem);
+  return hash_bytes (&p->upage, sizeof p->upage);
+}
+
+bool
+ev_less (const struct hash_elem *a_, const struct hash_elem *b_,
+                  void *aux UNUSED)
+{
+  const struct ev_entry *a = hash_entry (a_, struct ev_entry, hash_elem);
+  const struct ev_entry *b = hash_entry (b_, struct ev_entry, hash_elem);
+  return a->upage < b->upage;
+}
+
+struct ev_entry*
+ev_remove (void* upage, struct hash* ev)
+{
+  struct ev_entry p;
   struct hash_elem *e;
-
-  dummy.page = p;
-  e = hash_delete (&supp_page_table->page_table, &dummy.hash_elem);
-  return e != NULL ? hash_entry (e, struct page_table_entry, hash_elem): NULL;
+  p.upage = upage;
+  e = hash_delete (ev, &p.hash_elem);
+  return e != NULL ? hash_entry (e, struct ev_entry, hash_elem) :NULL;
 }
-*/
-//------------------------------------------------------------------ end hash table functions ------- //
 
-//TODO: put this into init.c
-/*
+struct hash* 
+new_evicted_table(tid_t tid)
+{
+  struct hash* h = malloc(sizeof struct hash); //TODO:include malloc
+  hash_init (&h, ev_hash, ev_less, NULL);
+}
+
+// -------------------------------------------------------------- end ----- //
+
+// ------------------------------------------------------------------------------------------- end -- // 
+
+
 void
-supp_pt_init (struct supp_page_table* spt)
+supp_page_table_init()
 {
-  spt->pagedir = pagedir_create();   
-  hash_init(&supp_page_table->page_table, page_table_hash, page_table_less, NULL);
+  hash_init (&supp_page_table, tid_hash, tid_less, NULL);
 }
 
-void*
-page_table_get_kpage (void* raw_upage)
-{
-  void* upage = pg_round_down (raw_upage);
-  tid_t tid = thread_current()->tid;
-  struct page dummy;
-  init_page(&dummy, tid, upage);
-  struct page_table_entry* found_pte = page_table_lookup(dummy);
-  if(found_pte != NULL)
-  {
-    return found_pte->page->kpage;  //TODO: do i need to put offset back to kpage
-  }
-  else{
-    //can't find in supp page table => try to find in swap
-    return supp_pt_locate_fault (void* upage);
-  }
-}
-*/
-/* For frame.c to use when eviction happens. Given tid and upage, remove page table entry */
-/*
-bool
-supp_page_table_remove (tid_t tid, void* raw_upage)
-{
-  struct page dummy;
-  init_page(&dummy, tid, upage);
-  struct page_table_entry* removed = page_table_remove(dummy);
-  if(removed == NULL){
-    //can't find entry/ nothing is removed
-    return false;
-  }
-  return true;
-}
-*/
-/*
-bool
-supp_page_table_remove (tid_t tid, void* upage)
-{
-  ASSERT (pg_ofs (upage) == 0);
-  struct thread* t = get_thread(tid);
-  pagedir_clear_page (t->supp_page_table->pagedir, upage);
-  // TODO: return what?
-  return true;
-}
-*/
-/* For frame.c to use when getting new page. Given tid and upage, add entry to page table */
-/*
-bool
-supp_page_table_add (tid_t tid, void* raw_upage)
-{
-  void* upage = pg_round_down (raw_upage);
-  struct page* p = malloc(sizeof(strict page));
-  init_page(p, tid, upage);
-  struct page_table_entry* pte = pte_malloc_init(p);
-  struct page_table_entry* added = hash_insert(&supp_page_table->page_table, &pte->hash_elem);
-  if(added == NULL){
-    // nothing is added
-    return false;
-  }
-  return true;
-}
-*/
-
-/*
 void
-per_process_cleanup(struct list* per_process_upages)
+spt_mark_evicted(tid_t tid, void* upage)
 {
-  struct list_elem *e;
-  e = list_begin(per_process_upages);
+  ASSERT(pg_ofs(upage) == 0);
+  struct spt_entry* found_spt_e = spt_tid_lookup(tid);
+  struct hash* found_evicted;
+  if(found_spt_e == NULL){
+    found_evicted = new_evicted_table (tid);
+  } else{
+    found_evicted = found_spt_e->evicted;
+  }
+  struct ev_entry* new_ev_e = malloc(sizeof struct ev_entry);
+  new_ev_e->upage = upage;
+  struct hash_elem* res = hash_insert(found_evicted, &new_ev_e->hash_elem);
+  ASSERT(res == NULL); // res!=null means entry already in hash which indicates bug 
+}
 
-  while(e != list_end(per_process_upages))
-  {
-    void* kapge = page_table_get_kpage (e->upage);
-    palloc_free_page (kpage);
-    struct list_elem* prev = e;
-    e = list_next(e)
-    free(list_entry(prev));
+void 
+spt_unmark_evicted(tid_t tid, void* upage)
+{ 
+  ASSERT(pg_ofs(upage) == 0);
+  struct spt_entry* found_spt_e = spt_tid_lookup(tid);
+  if(found_spt_e == NULL){
+    ASSERT(false); // can't find in hash, indicates bug
+  }
+  struct hash* found_evicted = found_spt_e->evicted;
+  struct ev_entry* found_ev_e = ev_remove(upage, found_evicted);
+  free(found_ev_e);
+  if(hash_empty(found_evicted)){
+    free(found_evicted);
   }
 }
-*/
 
+void 
+cleanup_evicted(tid_t tid)
+{
+  //TODO:
+}
 
-//--------------- helper functions -----------------//
 /* See 5.1.4 :  
  * returns the location of the data belongs to upage that causes pagefault */
 void*
@@ -193,23 +156,3 @@ supp_pt_locate_fault (void* upage)
   return NULL;
 }
 
-struct supp_page_table*
-spt_create ()
-{
-  struct supp_page_table* spt = malloc (sizeof(struct supp_page_table));
-  spt->evicted = malloc(sizeof (bool) * PG_TOTAL);
-  spt->pagedir = pagedir_create();
-  int i;
-  for(i = 0;(uint32_t) i < PG_TOTAL; i++){
-    spt->evicted[i] = 0;
-  }
-  return spt;
-}
-
-void
-spt_destroy (struct supp_page_table* spt)
-{
-  per_process_cleanup_swap();
-  free(spt->evicted);
-  free(spt);
-}
