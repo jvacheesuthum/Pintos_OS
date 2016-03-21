@@ -312,6 +312,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+  // remove any frames used
+  frame_free_page(cur->tid);
   //allows write to executable file after exit -----
   if (cur-> execfile != NULL) {
     file_allow_write(cur-> execfile);

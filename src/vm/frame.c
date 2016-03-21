@@ -109,25 +109,18 @@ frame_get_page(void* raw_upage, enum palloc_flags flags)
 }
 
 void 
-frame_free_page(tid_t thread, uint8_t* upage, void* kpage)
+frame_free_page(tid_t thread)
 {
-  struct frame* tofree = NULL;
-  struct list_elem* e = list_end(&frame_table);
-  while (e != list_begin(&frame_table) && tofree != NULL)
+  struct list_elem* e = list_begin(&frame_table);
+  while (e != list_end(&frame_table))
   {
     struct frame* inspecting = list_entry(e, struct frame, elem);
-    if (thread == inspecting->thread 
-	&& upage == inspecting->upage && kpage == inspecting->physical){
-      tofree = inspecting;
+    if (thread == inspecting->thread){
+      e = list_remove(e);
+      free(inspecting);
     }
-    e = list_prev(e);
+    else e = list_next(e);
   }
-
-  if (tofree != NULL) {
-    list_remove(&tofree->elem);
-    palloc_free_page(tofree->physical);
-  }
-  else ASSERT (false);
 }
 
 void frame_pin_page(tid_t thread, uint8_t* upage)
