@@ -86,7 +86,7 @@ frame_get_page(void* raw_upage, enum palloc_flags flags)
   */
 //if there is no empty frames, try to evict
   if (result == NULL) {
-    void* result = evict(upage);
+    //void* result = evict(upage);
   // if eviction was not successfull, panic
     ASSERT (result != NULL);
   // no need to add entry.
