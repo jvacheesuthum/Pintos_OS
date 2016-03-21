@@ -4,7 +4,11 @@
 #include "devices/block.h"
 #include "hash.h"
 #include "threads/malloc.h"
+#include "threads/vaddr.h"
+#include "threads/palloc.h"
 #include "vm/swap.h"
+#include "vm/page.h"
+#include "list.h"
 
 
 struct swap_table
@@ -24,6 +28,13 @@ struct free_slot
 
 static struct swap_table swap_table;
 
+//prototypes
+
+struct block_sector_t get_free_slot(void);
+void swap_read(block_sector_t slot_begin_sector, void* buffer);
+void swap_write(block_sector_t slot_begin_sector, void* buffer);
+
+
 //---------------------------------------------------------------------- hash table functions ------- //
 
 struct swap_table_entry
@@ -38,7 +49,7 @@ struct swap_table_entry*
 ste_malloc_init(tid_t tid, void* raw_upage)
 {
   struct swap_table_entry* entry = malloc(sizeof(struct swap_table_entry));
-  res->upage = pg_round_down (raw_upage);
+  entry->upage = pg_round_down (raw_upage);
   return entry; 
 }
 
@@ -72,7 +83,7 @@ swap_hash_table_remove (const tid_t tid, const void *raw_upage)
 
   dummy.tid = tid;
   dummy.upage = pg_round_down(raw_upage);
-  e = hash_delete (&swap_table->swap_hash_table, &dummy.hash_elem);
+  e = hash_delete (&swap_table.swap_hash_table, &dummy.hash_elem);
   return e != NULL ? hash_entry (e, struct swap_table_entry, hash_elem): NULL;
 }
 
@@ -81,10 +92,10 @@ swap_hash_table_remove (const tid_t tid, const void *raw_upage)
 void
 init_swap_table(void)
 {
-  swap_table->swap_block = block_get_role(BLOCK_SWAP); 
-  swap_table->new_swap_slot = 0; 
-  list_init(&swap_table->free_slots);
-  hash_init(&swap_table->swap_hash_table, swap_table_hash, swap_table_less, NULL);
+  swap_table.swap_block = block_get_role(BLOCK_SWAP); 
+  swap_table.new_swap_slot = 0; 
+  list_init(&swap_table.free_slots);
+  hash_init(&swap_table.swap_hash_table, swap_table_hash, swap_table_less, NULL);
 }
 
 // write into swap block and insert new entry into swap_hash_table
@@ -94,9 +105,9 @@ evict_to_swap(tid_t tid, void *raw_upage, void* kpage)
   block_sector_t free_slot = get_free_slot();
   swap_write(free_slot, kpage);
 
-  struct swap_table_entry* ste = ste_malloc_init(thread, raw_upage);
+  struct swap_table_entry* ste = ste_malloc_init(tid, raw_upage);
   ste->swap_slot = free_slot;
-  struct hash_elem* old = hash_insert(&swap_table->swap_hash_table, &ste->hash_elem);
+  struct hash_elem* old = hash_insert(&swap_table.swap_hash_table, &ste->hash_elem);
   if(old != NULL){
     ASSERT (false); //probably indicates bugs
   }
@@ -116,25 +127,25 @@ swap_restore_page(void* raw_upage)
 
   struct free_slot* fs = malloc(sizeof(struct free_slot));
   fs->slot_begin = slot;
-  list_push_back (&swap_table->free_slot, &fs->elem);
+  list_push_back (&swap_table.free_slots, &fs->elem);
 
   //set evicted back to 0
-  thread_current()->supp_page_table->evicted[upage/PG_SIZE] = 0;
+  thread_current()->supp_page_table->evicted[(uint32_t)upage/PG_SIZE] = 0;
 
   return found_frame;
 }
 
-block_sector_t
+struct block_sector_t
 get_free_slot(void)
 {
-  if(!list_empty(&swap_table->free_slots)){
-    struct free_slot* fs = &list_entry (list_pop_front(&swap_table->free_slots));
+  if(!list_empty(&swap_table.free_slots)){
+    struct free_slot* fs = list_entry (list_pop_front(&swap_table.free_slots), struct free_slot, elem);
     block_sector_t res = fs->slot_begin;
     free(fs);
     return res;
   } else {
-    block_sector_t res = swap_table->new_swap_slot;
-    swap_table->new_swap_slot += PGSIZE/BLOCK_SECTOR_SIZE;
+    block_sector_t res = swap_table.new_swap_slot;
+    swap_table.new_swap_slot += PGSIZE/BLOCK_SECTOR_SIZE;
     return res;
   }
 }
@@ -143,7 +154,7 @@ void
 swap_read(block_sector_t slot_begin_sector, void* buffer)
 {
   // TODO: read for 8 sectors
-  block_read(swap_table->swap_block, sector, free_frame);
+  block_read(swap_table.swap_block, sector, free_frame);
 }
 
 void 
@@ -155,7 +166,7 @@ swap_write(block_sector_t slot_begin_sector, void* buffer)
 void 
 per_process_cleanup_swap()
 {
-  struct supp_page_table spt = thread_current()->supp_page_table;
+  struct supp_page_table* spt = thread_current()->supp_page_table;
   int i;
   for(i = 0; i < PG_TOTAL; i++){
     if(spt->evicted[i] == 1){
@@ -167,7 +178,7 @@ per_process_cleanup_swap()
       //add to free slots list
       struct free_slot* fs = malloc(sizeof(struct free_slot));
       fs->slot_begin = slot;
-      list_push_back (&swap_table->free_slot, &fs->elem);
+      list_push_back (&swap_table.free_slots, &fs->elem);
     }
   }
 }
