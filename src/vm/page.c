@@ -9,6 +9,14 @@
 #include <hash.h>
 #include "lib/kernel/hash.h"
 
+//prototypes
+unsigned tid_hash (const struct hash_elem *p_, void *aux UNUSED);
+bool tid_less (const struct hash_elem *a_, const struct hash_elem *b_,void *aux UNUSED);
+struct spt_entry* spt_tid_lookup (const tid_t tid);
+unsigned ev_hash (const struct hash_elem *p_, void *aux UNUSED);
+bool ev_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux UNUSED);
+struct ev_entry* ev_remove (void* upage, struct hash* ev);
+struct hash* new_evicted_table(tid_t tid);
 
 // -------------------------------------------------------------------- supp page table hash table -- //
 static struct hash supp_page_table;
@@ -18,7 +26,7 @@ struct spt_entry
   struct hash_elem hash_elem;
   tid_t tid;
   struct hash* evicted;
-}
+};
 
 unsigned 
 tid_hash (const struct hash_elem *p_, void *aux UNUSED)
@@ -51,10 +59,10 @@ struct ev_entry
 {
   struct hash_elem hash_elem;
   void* upage;  // alreay rounded down
-}
+};
 
 unsigned 
-ev_hash (const struct ev_entry *p_, void *aux UNUSED)
+ev_hash (const struct hash_elem *p_, void *aux UNUSED)
 {
   const struct ev_entry *p = hash_entry (p_, struct ev_entry, hash_elem);
   return hash_bytes (&p->upage, sizeof p->upage);
@@ -77,13 +85,13 @@ ev_remove (void* upage, struct hash* ev)
   p.upage = upage;
   e = hash_delete (ev, &p.hash_elem);
   return e != NULL ? hash_entry (e, struct ev_entry, hash_elem) :NULL;
-}
+};
 
 struct hash* 
 new_evicted_table(tid_t tid)
 {
-  struct hash* h = malloc(sizeof struct hash); //TODO:include malloc
-  hash_init (&h, ev_hash, ev_less, NULL);
+  struct hash* h = malloc(sizeof (struct hash)); //TODO:include malloc
+  hash_init (h, ev_hash, ev_less, NULL);
 }
 
 // -------------------------------------------------------------- end ----- //
@@ -108,7 +116,7 @@ spt_mark_evicted(tid_t tid, void* upage)
   } else{
     found_evicted = found_spt_e->evicted;
   }
-  struct ev_entry* new_ev_e = malloc(sizeof struct ev_entry);
+  struct ev_entry* new_ev_e = malloc(sizeof (struct ev_entry));
   new_ev_e->upage = upage;
   struct hash_elem* res = hash_insert(found_evicted, &new_ev_e->hash_elem);
   ASSERT(res == NULL); // res!=null means entry already in hash which indicates bug 

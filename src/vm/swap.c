@@ -136,7 +136,7 @@ swap_restore_page(void* raw_upage)
   list_push_back (&swap_table.free_slots, &fs->elem);
 
   //set evicted back to 0
-  spt_unmark_evicted(thread_current()->tid, upage)
+  spt_unmark_evicted(thread_current()->tid, upage);
 
   return found_frame;
 }
@@ -169,6 +169,7 @@ swap_write(block_sector_t slot_begin_sector, void* buffer)
   //TODO: block_write for 8 sectors
 }
 
+/*
 void 
 per_process_cleanup_swap()
 {
@@ -188,3 +189,4 @@ per_process_cleanup_swap()
     }
   }
 }
+*/
