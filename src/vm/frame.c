@@ -56,9 +56,9 @@ evict(uint8_t *newpage)
   // remove pagedir entry for evicted page
   pagedir_clear_page(pd, toevict->upage);
   // mark sup pt evicted.
-  spt_mark_evicted(toevict->thread, toevict->upage);
+  ///spt_mark_evicted(toevict->thread, toevict->upage);
   // place contenets into swap. should need to save the thread and upage too.
-  evict_to_swap(toevict->thread, toevict->upage, toevict->physical);
+  // evict_to_swap(toevict->thread, toevict->upage, toevict->physical);
   // change frame to newpage
   toevict->thread = thread_current()->tid;
   toevict->upage = newpage;
