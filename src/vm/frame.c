@@ -29,13 +29,14 @@ frame_table_init(void)
 void*
 evict(uint8_t *newpage)
 { 
+  
   // cannot evict empty list (and should not)
   ASSERT(!list_empty(&frame_table));
 
   struct list_elem* e = list_begin(&frame_table);
   struct frame* toevict = list_entry(e, struct frame, elem);
 // TODO: use supp page table : change pointer "pd"
-  uint32_t *pd = (get_thread(toevict->thread))->pagedir;
+  uint32_t *pd = (get_thread(toevict->thread))->supp_page_table->pagedir; // done
   while (pagedir_is_accessed(pd, toevict->upage))
   {
     e = list_remove(e);
@@ -43,13 +44,13 @@ evict(uint8_t *newpage)
     list_push_back(&frame_table, &toevict->elem);
     toevict = list_entry(e, struct frame, elem);
 // TODO: use supp page table: change pointer "pd"
-    pd = (get_thread(toevict->thread))->pagedir;
+    pd = (get_thread(toevict->thread))->supp_page_table->pagedir; //done
   }
   
   // found unaccessed page, evict
   list_remove(e);
   // remove pagedir entry for evicted page
-// TODO: use vasin's function
+// TODO: use vasin's function //don't need anymore, done
   pagedir_clear_page(pd, toevict->upage);
   // place contenets into swap. should need to save the thread and upage too.
   evict_to_swap(toevict->thread, toevict->upage, toevict->physical);
@@ -72,14 +73,16 @@ frame_get_page(void* raw_upage, enum palloc_flags flags)
   void* result = palloc_get_page(flags);
  
   //updating page tables and per_process_upages list
+  /*
   struct per_process_upages_elem* el = malloc(sizeof(struct per_process_upages_elem));
   el->upage = upage;
   list_push_back(&thread_current()->per_process_upages_elem, &el->elem);
   supp_table_add(thread_current()->tid, upage);
-
+  */
 //if there is no empty frames, try to evict
   if (result == NULL) {
     void* result = evict(upage);
+    //TODO: where do i mark eviced array to 1??
   // if eviction was not successfull, panic
     ASSERT (result != NULL);
   // no need to add entry.
@@ -93,6 +96,9 @@ frame_get_page(void* raw_upage, enum palloc_flags flags)
   entry->physical = result;
   list_push_back(&frame_table, &entry->elem);
 
+  //updating supp_page_table of current process
+  struct pagedir* pd = thread_current()->supp_page_table->page_dir;
+  pagedir_set_page(pd, upage, result, true ); // TODO: check if writable is actually true
   return result;
 
 }

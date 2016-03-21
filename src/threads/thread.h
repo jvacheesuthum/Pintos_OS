@@ -118,8 +118,9 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */ //TODO: remove this//
 
     // task 3 //
-    struct list per_process_upages;     /* replace page directory, only used to keep track of palloc'd user pages 
+   /* struct list per_process_upages;*/     /* replace page directory, only used to keep track of palloc'd user pages 
                                            to use to free resources when process terminates */
+    struct supp_page_table* supp_page_table;
     //---//
     struct thread *parent_process;      // for the process thread in user program to refer back to its parent //
     struct list children_processes;

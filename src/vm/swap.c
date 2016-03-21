@@ -103,6 +103,7 @@ evict_to_swap(tid_t tid, void *raw_upage, void* kpage)
 void*
 swap_restore_page(void* raw_upage)
 {
+  void* upage = pg_round_down (raw_upage);
   struct swap_table_entry* found_swe = swap_hash_table_remove(thread_current()->tid, raw_upage);
   if(found_swe == NULL) { return NULL; }
   block_sector_t slot = found_swe->swap_slot;
@@ -114,6 +115,9 @@ swap_restore_page(void* raw_upage)
   struct free_slot* fs = malloc(sizeof(struct free_slot));
   fs->slot_begin = slot;
   list_push_back (&swap_table->free_slot, &fs->elem);
+
+  //set evicted back to 0
+  thread_current()->supp_page_table->evicted[upage/PG_SIZE] = 0;
 
   return found_frame;
 }
@@ -144,4 +148,24 @@ void
 swap_write(block_sector_t slot_begin_sector, void* buffer)
 {
   //TODO: block_write for 8 sectors
+}
+
+void 
+per_process_cleanup_swap()
+{
+  struct supp_page_table spt = thread_current()->supp_page_table;
+  int i;
+  for(i = 0; i < PG_TOTAL; i++){
+    if(spt->evicted[i] == 1){
+      //remove entry from hash table
+      void* upage = i*PG_SIZE;
+      struct swap_table_entry* found_swe = swap_hash_table_remove(thread_current()->tid, upage);
+      block_sector_t slot = found_swe->swap_slot;
+      free(found_swe);
+      //add to free slots list
+      struct free_slot* fs = malloc(sizeof(struct free_slot));
+      fs->slot_begin = slot;
+      list_push_back (&swap_table->free_slot, &fs->elem);
+    }
+  }
 }

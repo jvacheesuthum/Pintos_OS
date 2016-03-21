@@ -8,17 +8,18 @@
 // TODO: CHANGE ALL OPERATIONS WITH PAGEDIR IN PROCESS.C TO FUNCTIONS IN THIS FILE INSTEAD
 // TODO: change all reference to pagedir in process.c to spt->pagedir
 //
-
+/*
 static supp_page_table supp_page_table;
-
+*/
+/*
 void
 init_page(struct page* p, tid_t owner_tid, void* raw_upage){
   p->tid = owner_tid;
   p->upage = pg_round_down(raw_upage);
 }
-
+*/
 //---------------------------------------------------------------------- hash table functions ------- //
-
+/*
 struct page_table_entry
 {
   struct hash_elem hash_elem;
@@ -38,8 +39,9 @@ page_table_hash (const struct hash_elem *p_, void *aux UNUSED)
   const struct page_table_entry *p = hash_entry (p_, struct swap_table_entry, hash_elem);
   return hash_bytes (&p->page->tid, sizeof p->page->tid) ^ hash_bytes (&p->page->upage, sizeof p->page->upage);
 }
-
+*/
 /* less function for swap hash table. See spec A.8.5 */
+/*
 bool
 page_table_less (const struct hash_elem *a_, const struct hash_elem *b_,
                   void *aux UNUSED)
@@ -74,9 +76,11 @@ page_table_remove (const struct page p)
   e = hash_delete (&supp_page_table->page_table, &dummy.hash_elem);
   return e != NULL ? hash_entry (e, struct page_table_entry, hash_elem): NULL;
 }
+*/
 //------------------------------------------------------------------ end hash table functions ------- //
 
 //TODO: put this into init.c
+/*
 void
 supp_pt_init (struct supp_page_table* spt)
 {
@@ -101,8 +105,9 @@ page_table_get_kpage (void* raw_upage)
     return supp_pt_locate_fault (void* upage);
   }
 }
-
+*/
 /* For frame.c to use when eviction happens. Given tid and upage, remove page table entry */
+/*
 bool
 supp_page_table_remove (tid_t tid, void* raw_upage)
 {
@@ -115,8 +120,18 @@ supp_page_table_remove (tid_t tid, void* raw_upage)
   }
   return true;
 }
+*/
+
+bool
+supp_page_table_remove (tid_t tid, void* upage)
+{
+  ASSERT (pg_ofs (upage) == 0);
+  struct thread* t = get_thread(tid);
+  pagedir_clear_page (t->supp_page_table->pagedir);
+}
 
 /* For frame.c to use when getting new page. Given tid and upage, add entry to page table */
+/*
 bool
 supp_page_table_add (tid_t tid, void* raw_upage)
 {
@@ -131,7 +146,9 @@ supp_page_table_add (tid_t tid, void* raw_upage)
   }
   return true;
 }
+*/
 
+/*
 void
 per_process_cleanup(struct list* per_process_upages)
 {
@@ -147,6 +164,7 @@ per_process_cleanup(struct list* per_process_upages)
     free(list_entry(prev));
   }
 }
+*/
 
 
 //--------------- helper functions -----------------//
@@ -169,4 +187,16 @@ supp_pt_locate_fault (uint8_t* upage)
   process_exit();
 }
 
+void
+spt_init (struct supp_page_table* spt)
+{
+  spt = malloc (sizeof(struct supp_page_table));
+  pagedir_create (spt->pagedir);
+  spt->evicted = {0}
+}
 
+spt_destroy (struct supp_page_table* spt)
+{
+  per_process_cleanup_swap();
+  free(spt);
+}
