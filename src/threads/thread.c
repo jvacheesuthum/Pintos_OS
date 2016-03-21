@@ -15,6 +15,7 @@
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/syscall.h"
+#include "vm/page.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -142,7 +143,7 @@ thread_tick (void)
   if (t == idle_thread)
     idle_ticks++;
 #ifdef USERPROG
-  else if (t->pagedir != NULL)
+  else if (t->supp_page_table->pagedir != NULL)
     user_ticks++;
 #endif
   else

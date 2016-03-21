@@ -116,7 +116,7 @@ struct thread
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
-    uint32_t *pagedir;                  /* Page directory. */ //TODO: remove this//
+//    uint32_t *pagedir;                  /* Page directory. */ //TODO: remove this//
 
     // task 3 //
    /* struct list per_process_upages;*/     /* replace page directory, only used to keep track of palloc'd user pages 
