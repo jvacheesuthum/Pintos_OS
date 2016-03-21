@@ -1,14 +1,21 @@
 #include "vm/frame.h"
 #include "list.h"
 #include "threads/palloc.h"
+#include "threads/malloc.h"
+#include "threads/thread.h"
+#include "userprog/pagedir.h"
+#include "vm/swap.h"
+#include "vm/page.h"
 #include <stddef.h>
 #include <debug.h>
 
+void* evict(uint8_t *newpage);
 
 // should actually use hash but for testing correctness use list for now.
 struct frame
   {
     struct list_elem elem;
+    tid_t thread;
     uint8_t *upage;
     void* physical;
   };
@@ -21,30 +28,80 @@ frame_table_init(void)
   list_init(&frame_table);
 }
 
+// eviction according to second chance
+void*
+evict(uint8_t *newpage)
+{ 
+  
+  // cannot evict empty list (and should not)
+  ASSERT(!list_empty(&frame_table));
+
+  struct list_elem* e = list_begin(&frame_table);
+  struct frame* toevict = list_entry(e, struct frame, elem);
+  uint32_t *pd = (get_thread(toevict->thread))->supp_page_table->pagedir; 
+  while (pagedir_is_accessed(pd, toevict->upage))
+  {
+    e = list_remove(e);
+    pagedir_set_accessed(pd, toevict->upage, false);
+    list_push_back(&frame_table, &toevict->elem);
+    toevict = list_entry(e, struct frame, elem);
+    pd = (get_thread(toevict->thread))->supp_page_table->pagedir; 
+  }
+  
+  // found unaccessed page, evict
+  list_remove(e);
+  // remove pagedir entry for evicted page
+  pagedir_clear_page(pd, toevict->upage);
+  // mark sup pt evicted.
+  (get_thread(toevict->thread))->supp_page_table->evicted[(uint32_t)(toevict->upage)/PG_SIZE] = 1;
+  // place contenets into swap. should need to save the thread and upage too.
+  evict_to_swap(toevict->thread, toevict->upage, toevict->physical);
+  // change frame to newpage
+  toevict->thread = thread_current()->tid;
+  toevict->upage = newpage;
+  list_push_back(&frame_table, e);
+
+  return toevict->physical;
+}
+
 // only for user processes. 
 //kernel should directly use palloc get page as original
 void* 
-frame_get_page(uint8_t *upage, enum palloc_flags flags)
+frame_get_page(void* raw_upage, enum palloc_flags flags)
 {
   ASSERT (flags & PAL_USER)
+  void* upage = pg_round_down (raw_upage); 
 
   void* result = palloc_get_page(flags);
-  
-//for now, no swapping, just panic if no more memory.
+ 
+  //updating page tables and per_process_upages list
+  /*
+  struct per_process_upages_elem* el = malloc(sizeof(struct per_process_upages_elem));
+  el->upage = upage;
+  list_push_back(&thread_current()->per_process_upages_elem, &el->elem);
+  supp_table_add(thread_current()->tid, upage);
+  */
+//if there is no empty frames, try to evict
   if (result == NULL) {
-	ASSERT (false);
-        // TODO: update evicted array in supp table as well
+    void* result = evict(upage);
+  // if eviction was not successfull, panic
+    ASSERT (result != NULL);
+  // no need to add entry.
+    return result;
   }
 
 //add entry to frame table
   struct frame* entry = malloc(sizeof(struct frame));
+  entry->thread = thread_current()->tid;
   entry->upage = upage;
   entry->physical = result;
   list_push_back(&frame_table, &entry->elem);
 
-  /* 
-   * TODO:  updates supp_pagetable as well
-   */
+  //updating supp_page_table of current process
+  uint32_t* pd = thread_current()->supp_page_table->pagedir;
+  pagedir_set_page(pd, upage, result, true ); // TODO: check if writable is actually true
+  // TODO: do we need to mark evicted = 0 when create?
+  thread_current()->supp_page_table->evicted[(uint32_t)upage/PG_SIZE] = 0;
   return result;
 
 }

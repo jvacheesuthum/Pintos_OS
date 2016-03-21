@@ -20,6 +20,7 @@
 #include "threads/malloc.h"
 #include "userprog/syscall.h"
 #include "vm/frame.h"
+#include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -316,7 +317,8 @@ process_exit (void)
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
-  pd = cur->pagedir;
+  struct supp_page_table* cur_spt = cur->supp_page_table;
+  pd = cur_spt->pagedir;
   if (pd != NULL) 
     {
       /* Correct ordering here is crucial.  We must set
@@ -326,10 +328,14 @@ process_exit (void)
          directory before destroying the process's page
          directory, or our active page directory will be one
          that's been freed (and cleared). */
-      cur->pagedir = NULL;
+      cur_spt->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+  if(cur_spt != NULL)
+  {
+    spt_destroy(cur_spt);
+  }
     
   //allows write to executable file after exit -----
   if (cur-> execfile != NULL) {
@@ -346,7 +352,7 @@ process_activate (void)
   struct thread *t = thread_current ();
 
   /* Activate thread's page tables. */
-  pagedir_activate (t->pagedir);
+  pagedir_activate (t->supp_page_table->pagedir);
 
   /* Set thread's kernel stack for use in processing
      interrupts. */
@@ -437,8 +443,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   int i;
 
   /* Allocate and activate page directory. */
-  t->pagedir = pagedir_create ();
-  if (t->pagedir == NULL) 
+  // TODO: which one?
+  //t->supp_page_table = spt_init();
+  t->supp_page_table = spt_create();
+  if (t->supp_page_table->pagedir == NULL) 
     goto done;
   process_activate ();
 
@@ -696,6 +704,6 @@ install_page (void *upage, void *kpage, bool writable)
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
-  return (pagedir_get_page (t->pagedir, upage) == NULL
-          && pagedir_set_page (t->pagedir, upage, kpage, writable));
+  return (pagedir_get_page (t->supp_page_table->pagedir, upage) == NULL
+          && pagedir_set_page (t->supp_page_table->pagedir, upage, kpage, writable));
 }
