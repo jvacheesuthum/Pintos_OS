@@ -14,6 +14,9 @@ struct supp_page_table {
 }
 */
 
+//TODO: have we put page offfset back when returning kpage in pagedir_get_page?
+//      if not we can make a funciton to manipulate the offset here, which uses
+//      the original pagedir_get_page first
 struct supp_page_table {
   uint32_t* pagedir;
   bool evicted[PG_TOTAL]; 
