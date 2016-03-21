@@ -738,7 +738,6 @@ thread_schedule_tail (struct thread *prev)
 
 #ifdef USERPROG
   /* Activate the new address space. */
-  cur->supp_page_table = spt_create();
   process_activate ();
 #endif
 
