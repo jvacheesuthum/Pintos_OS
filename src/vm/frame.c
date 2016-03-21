@@ -35,22 +35,19 @@ evict(uint8_t *newpage)
 
   struct list_elem* e = list_begin(&frame_table);
   struct frame* toevict = list_entry(e, struct frame, elem);
-// TODO: use supp page table : change pointer "pd"
-  uint32_t *pd = (get_thread(toevict->thread))->supp_page_table->pagedir; // done
+  uint32_t *pd = (get_thread(toevict->thread))->supp_page_table->pagedir; 
   while (pagedir_is_accessed(pd, toevict->upage))
   {
     e = list_remove(e);
     pagedir_set_accessed(pd, toevict->upage, false);
     list_push_back(&frame_table, &toevict->elem);
     toevict = list_entry(e, struct frame, elem);
-// TODO: use supp page table: change pointer "pd"
-    pd = (get_thread(toevict->thread))->supp_page_table->pagedir; //done
+    pd = (get_thread(toevict->thread))->supp_page_table->pagedir; 
   }
   
   // found unaccessed page, evict
   list_remove(e);
   // remove pagedir entry for evicted page
-// TODO: use vasin's function //don't need anymore, done
   pagedir_clear_page(pd, toevict->upage);
   // place contenets into swap. should need to save the thread and upage too.
   evict_to_swap(toevict->thread, toevict->upage, toevict->physical);

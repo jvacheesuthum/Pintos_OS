@@ -187,14 +187,16 @@ supp_pt_locate_fault (uint8_t* upage)
   process_exit();
 }
 
-void
-spt_init (struct supp_page_table* spt)
+struct supp_page_table*
+spt_create ()
 {
-  spt = malloc (sizeof(struct supp_page_table));
-  pagedir_create (spt->pagedir);
-  spt->evicted = {0}
+  struct supp_page_table* spt = malloc (sizeof(struct supp_page_table));
+  spt->pagedir = pagedir_create();
+  spt->evicted = {0};
+  return spt;
 }
 
+void
 spt_destroy (struct supp_page_table* spt)
 {
   per_process_cleanup_swap();
