@@ -28,7 +28,6 @@
 #include "userprog/gdt.h"
 #include "userprog/syscall.h"
 #include "userprog/tss.h"
-#include "vm/page.h"
 #else
 #include "tests/threads/tests.h"
 #endif
@@ -38,6 +37,8 @@
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
 #include "vm/frame.h"
+#include "vm/page.h"
+#include "vm/swap.h"
 #endif
 
 /* Page directory with kernel mappings only. */
@@ -104,6 +105,7 @@ main (void)
   /*task 3: init frame table*/
   supp_page_table_init();
   frame_table_init ();
+  init_swap_table ();
 
   /* Segmentation. */
 #ifdef USERPROG
