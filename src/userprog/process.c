@@ -144,47 +144,60 @@ start_process (void *file_name_)
   }
  
   //calculate the offsets and argument count
+  int offset;
   offsets[0] = 0;
-  for (token = strtok_r (file_name, " ", &save_ptr);
-       token != NULL;
-       token = strtok_r (NULL, " ", &save_ptr)) {
-    while (*save_ptr == ' ') save_ptr++;
+  //use token pointer to calculate offsets
+  token = strtok_r (file_name, " ", &save_ptr);
+  argc++;
+  token = strtok_r (NULL, " ", &save_ptr);
+  if (token != NULL) {
+    //one or more arg
+    offset = token - file_name;
+    offsets[argc] = offset;
+  } else {
+    //no arg
+    offset = save_ptr - file_name;
+    offsets[argc] = offset;
+  }
+  
+  while(token != NULL) {
+    token = strtok_r (NULL, " ", &save_ptr);
+    offset = token - file_name;
     argc++;
-    offsets[argc] = save_ptr - file_name; 
-  }  
+    offsets[argc] = offset;
+  } 
   //-------------------------------------//
   success = load (file_name, &if_.eip, &if_.esp);
   //-------------ARGPASS-----------------//
 
   if (success) {
-   
-    push_stack(&if_.esp, file_name_len + 1);
-    memcpy (if_.esp, file_name, file_name_len + 1);
+
+    int push_size;
+    int int_size = sizeof(int);
+
+    push_size = file_name_len + 1;
+    push_stack(&if_.esp, push_size);
+    memcpy (if_.esp, file_name, push_size);
     origin = if_.esp;
 
-    //round down to a multiple of 4
-    push_stack(&if_.esp, (INSTR_SIZE - ((file_name_len + 1) % INSTR_SIZE)));
+    //push stack for arguments all at once along with rounding
+    push_size = (*(uint32_t *)if_.esp % int_size) 
+                 + (argc + 1) * int_size;
+    push_stack(&if_.esp, push_size);
+    *(int *) (if_.esp + argc * int_size) = 0;
 
-    //0 for arg_list[argc] and word-align
-    push_stack(&if_.esp, INSTR_SIZE);
-    *(int *) if_.esp = 0;
-   
     //push elem right to left
     for (i = argc - 1; i >= 0; i--) {
-      push_stack(&if_.esp, INSTR_SIZE);
-      *(char **) if_.esp =  origin + offsets[i]; 
+      *(char **) (if_.esp + i * int_size) =  origin + offsets[i]; 
     }
-    //argv points to arg_list[0]
-    push_stack(&if_.esp, INSTR_SIZE);
-    *(char **) if_.esp = if_.esp + INSTR_SIZE;
-    //pushing argc
-    push_stack(&if_.esp, INSTR_SIZE);
-    *(int *)if_.esp = argc;
-    //return addr
-    push_stack(&if_.esp, INSTR_SIZE);
-    *(int *)if_.esp = 0;
-  
-     
+
+    //pushes arg_list[0], argc, return addr (check all at once)
+    push_size = 3 * int_size;
+    push_stack(&if_.esp, push_size);
+    *(int *) if_.esp = 0;
+    *(int *) (if_.esp + int_size) = argc;
+    *(int *) (if_.esp + 2 * int_size) = if_.esp + push_size;
+
     //this denies write to executable file if success --------------
     lock_acquire(&file_lock);
     thread_current()-> execfile = filesys_open(file_name);
