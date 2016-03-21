@@ -164,34 +164,63 @@ page_fault (struct intr_frame *f)
   bool set;
   bool push_check = (fault_addr == f->esp - 4) || (fault_addr == f->esp - 32);
 //  if (not_present && !push_check) exit(-1, NULL);
-//  if (not_present) printf("not_present = true\n");
-//  if (write) printf("write = true\n");
-//  if (user) printf("user = true\n");
+  if (not_present) {
+    printf("not_present = true\n");
+  } else {
+    printf("not_present = false\n");
+  }
+  if (write) {
+    printf("write = true\n");
+  } else {
+    printf("write = false\n");
+  }
+  if (user) {
+    printf("user = true\n");
+  } else {
+    printf("user = false\n");
+  }
+  if (f->esp < PHYS_BASE) printf("INSIDE\n");
 
-
-  if (f->esp == fault_addr || push_check) {
+  if ((f->esp == fault_addr || push_check)) {
     if ((uint32_t *)PHYS_BASE - (uint32_t *)fault_addr > STACK_LIMIT) {
       exit(-1, NULL); 
       //or kill(f)? Same problem below
     }
+/*    printf("esp addr before: %p\n", f->esp);
     void *kpage = frame_get_page(f->esp, PAL_ZERO | PAL_USER); //PAL_ZERO as well?
-//    void *kpage = palloc_get_page (PAL_ZERO | PAL_USER); 
     if (kpage == NULL) exit(-1, NULL);
-    f->esp -= ((uint32_t) f->esp % PGSIZE);
-    set = pagedir_set_page (thread_current()->pagedir, f->esp - PGSIZE, kpage, true);
+    void *upage = f->esp - ((uint32_t) f->esp % PGSIZE) - PGSIZE;
+    set = pagedir_set_page (thread_current()->pagedir, upage, kpage, true);
     if (!set) exit(-1, NULL);
+    printf("esp addr after: %p\n", thread_current()->pagedir);
+*/
+    int pgcount;
+    pgcount = ((uint32_t)f->esp - (uint32_t)fault_addr) / PGSIZE + 1;
+    while (pgcount < 8) {
+      void *kpage;
+      if(user) {
+        kpage = frame_get_page(f->esp, PAL_ZERO | PAL_USER); //PAL_ZERO as well?
+      } else {
+        kpage = palloc_get_page(PAL_ZERO | PAL_USER);
+      }
+      if (kpage == NULL) exit(-1, NULL);
+      void *upage = f->esp - ((uint32_t) f->esp % PGSIZE) - (pgcount) * PGSIZE;
+      set = pagedir_set_page (thread_current()->pagedir, upage, kpage, true);
+      if (!set) exit(-1, NULL);
+      pgcount ++;
+    }
     return;
   }
-  //------------------------------//
-  //-----------TASK 2------------//
-  if (not_present && (user && !is_user_vaddr (fault_addr))) {
-    exit(-1, NULL);
+  if (!not_present && write) {
+    void *kpage = palloc_get_page(PAL_ZERO);
+    void *upage = f->esp - ((uint32_t) f->esp % PGSIZE);
+    if (user && !is_user_vaddr (f->esp)) exit(-1, NULL);
+//    printf("upage: %p\n", upage);
+//    printf("f->esp: %p\n", f->esp);
+    set = pagedir_set_page (thread_current()->pagedir, upage, kpage, true);
+    return;
   } else {
-//    void *kpage = palloc_get_page(PAL_ZERO);
-//    f->esp -= ((uint32_t) f->esp % PGSIZE);
-//    set = pagedir_set_page (thread_current()->pagedir, f->esp, kpage, true);
     exit(-1, NULL);
-//    return;
   }
   //-----------------------------//
 
