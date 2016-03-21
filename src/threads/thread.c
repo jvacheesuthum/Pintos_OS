@@ -143,7 +143,7 @@ thread_tick (void)
   if (t == idle_thread)
     idle_ticks++;
 #ifdef USERPROG
-  else if (t->supp_page_table->pagedir != NULL)
+  else if (t->pagedir != NULL)
     user_ticks++;
 #endif
   else
