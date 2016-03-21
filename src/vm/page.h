@@ -4,9 +4,11 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "vm/frame.h"
-#include "thread/vaddr.h"
+#include "threads/vaddr.h"
 
-#define PG_TOTAL (PHYS_BASE/PG_SIZE)
+// TODO: is this right?
+#define PG_SIZE (4096)
+#define PG_TOTAL ((uint32_t)PHYS_BASE/PG_SIZE)
 
 /*
 struct supp_page_table {
@@ -20,7 +22,7 @@ struct supp_page_table {
 struct supp_page_table {
   uint32_t* pagedir;
   bool evicted[PG_TOTAL]; 
-}
+};
 struct supp_page_table* spt_create();
 void spt_destroy (struct supp_page_table* spt);
 

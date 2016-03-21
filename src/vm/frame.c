@@ -5,6 +5,7 @@
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
 #include "vm/swap.h"
+#include "vm/page.h"
 #include <stddef.h>
 #include <debug.h>
 
@@ -49,6 +50,8 @@ evict(uint8_t *newpage)
   list_remove(e);
   // remove pagedir entry for evicted page
   pagedir_clear_page(pd, toevict->upage);
+  // mark sup pt evicted.
+  (get_thread(toevict->thread))->supp_page_table->evicted[(uint32_t)(toevict->upage)/PG_SIZE] = 1;
   // place contenets into swap. should need to save the thread and upage too.
   evict_to_swap(toevict->thread, toevict->upage, toevict->physical);
   // change frame to newpage
@@ -79,7 +82,6 @@ frame_get_page(void* raw_upage, enum palloc_flags flags)
 //if there is no empty frames, try to evict
   if (result == NULL) {
     void* result = evict(upage);
-    //TODO: where do i mark eviced array to 1??
   // if eviction was not successfull, panic
     ASSERT (result != NULL);
   // no need to add entry.
@@ -94,8 +96,10 @@ frame_get_page(void* raw_upage, enum palloc_flags flags)
   list_push_back(&frame_table, &entry->elem);
 
   //updating supp_page_table of current process
-  struct pagedir* pd = thread_current()->supp_page_table->page_dir;
+  uint32_t* pd = thread_current()->supp_page_table->pagedir;
   pagedir_set_page(pd, upage, result, true ); // TODO: check if writable is actually true
+  // TODO: do we need to mark evicted = 0 when create?
+  thread_current()->supp_page_table->evicted[(uint32_t)upage/PG_SIZE] = 0;
   return result;
 
 }

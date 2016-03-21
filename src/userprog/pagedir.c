@@ -5,6 +5,7 @@
 #include "threads/init.h"
 #include "threads/pte.h"
 #include "threads/palloc.h"
+#include "vm/swap.h"
 
 static uint32_t *active_pd (void);
 static void invalidate_pagedir (uint32_t *);
@@ -134,7 +135,7 @@ pagedir_get_page (uint32_t *pd, const void *uaddr)
     // page is not in pagedir, but might be in swap
     // TODO: which pd to use? thread_current-> sup pt? // done: current one, already handled in supp_pt_locate_fault
     // TODO: uaddr is void*, method wants uint8_t*. cast or change method? 
-    return supp_pt_locate_fault(uaddr)
+    return supp_pt_locate_fault(uaddr);
    }
   return NULL;
 }

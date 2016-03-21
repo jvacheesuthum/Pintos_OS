@@ -20,6 +20,7 @@
 #include "threads/malloc.h"
 #include "userprog/syscall.h"
 #include "vm/frame.h"
+#include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -423,7 +424,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   int i;
 
   /* Allocate and activate page directory. */
-  t->supp_page_table = spt_init();
+  // TODO: which one?
+  //t->supp_page_table = spt_init();
+  t->supp_page_table = spt_create();
   if (t->supp_page_table->pagedir == NULL) 
     goto done;
   process_activate ();

@@ -1,6 +1,9 @@
 #include "vm/page.h"
 #include "vm/frame.h"
 #include "vm/swap.h"
+#include "userprog/process.h"
+#include "threads/malloc.h"
+#include "userprog/pagedir.h"
 #include <stddef.h>
 #include <debug.h>
 ///// include 2 hash libs
@@ -127,7 +130,9 @@ supp_page_table_remove (tid_t tid, void* upage)
 {
   ASSERT (pg_ofs (upage) == 0);
   struct thread* t = get_thread(tid);
-  pagedir_clear_page (t->supp_page_table->pagedir);
+  pagedir_clear_page (t->supp_page_table->pagedir, upage);
+  // TODO: return what?
+  return true;
 }
 
 /* For frame.c to use when getting new page. Given tid and upage, add entry to page table */
@@ -171,7 +176,7 @@ per_process_cleanup(struct list* per_process_upages)
 /* See 5.1.4 :  
  * returns the location of the data belongs to upage that causes pagefault */
 void*
-supp_pt_locate_fault (uint8_t* upage)
+supp_pt_locate_fault (void* upage)
 {
   
   if(is_user_vaddr(upage)){
