@@ -92,6 +92,7 @@ new_evicted_table(tid_t tid)
 {
   struct hash* h = malloc(sizeof (struct hash)); //TODO:include malloc
   hash_init (h, ev_hash, ev_less, NULL);
+  return h;
 }
 
 // -------------------------------------------------------------- end ----- //
@@ -139,9 +140,21 @@ spt_unmark_evicted(tid_t tid, void* upage)
 }
 
 void 
-cleanup_evicted(tid_t tid)
+cleanup_evicted()
 {
-  //TODO:
+  //1. find the tid hash
+  struct spt_entry* found_spt_e = spt_tid_lookup(thread_current()->tid);
+  ASSERT(found_spt_e != NULL);
+  struct hash* found_evicted = found_spt_e->evicted;
+  //2. iterate through it
+  struct hash_iterator i;
+  hash_first(&i,found_evicted);
+  while(hash_next(&i))
+  {
+  //3. find entry in swap table, call remove slot function
+    struct ev_entry* each_ev = hash_entry(hash_cur(&i), struct ev_entry, hash_elem);
+    swap_clear_slot(each_ev->upage); 
+  }
 }
 
 /* See 5.1.4 :  
@@ -156,8 +169,8 @@ supp_pt_locate_fault (void* upage)
     /* (2): obtain a frame to store the page: done in swap_restore_page => frame_get_page*/
     /* (3) fetch data into frame : done in swap_restore_page */
     /* (4) point the page table entry for the faulting virtual address to frame : done in swap_restore_page => frame_get_page*/
-    ///void* kpage = swap_restore_page(upage);
-    ///return kpage;
+    void* kpage = swap_restore_page(upage);
+    return kpage;
   } 
   // TODO: check if fault causes by writing to read-only page is already covered here. (it should)
   process_exit();

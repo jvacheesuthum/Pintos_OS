@@ -141,6 +141,21 @@ swap_restore_page(void* raw_upage)
   return found_frame;
 }
 
+// remove from hash table and add to free slot list
+void
+swap_clear_slot(void* raw_upage)
+{
+  void* upage = pg_round_down (raw_upage);
+  struct swap_table_entry* found_swe = swap_hash_table_remove(thread_current()->tid, raw_upage);
+  ASSERT(found_swe != NULL);
+  block_sector_t slot = found_swe->swap_slot;
+  free(found_swe);
+  
+  struct free_slot* fs = malloc(sizeof(struct free_slot));
+  fs->slot_begin = slot;
+  list_push_back (&swap_table.free_slots, &fs->elem);
+}
+
 block_sector_t
 get_free_slot(void)
 {
