@@ -163,7 +163,6 @@ page_fault (struct intr_frame *f)
   //if stack pointer decremented manually, then esp == fault_addr
   bool set;
   bool push_check = (fault_addr == f->esp - 4) || (fault_addr == f->esp - 32);
-//  if (not_present && !push_check) exit(-1, NULL);
 /*  if (not_present) {
     printf("not_present = true\n");
   } else {
@@ -178,37 +177,27 @@ page_fault (struct intr_frame *f)
     printf("user = true\n");
   } else {
     printf("user = false\n");
-  }*/
-//  if (f->esp < PHYS_BASE) printf("INSIDE\n");
-//  printf("fault_addr: %p\n", fault_addr);
-//  printf("f->esp: %p\n", f->esp);
-
-  if (fault_addr >= PHYS_BASE || fault_addr <= 0 ||
-      (user && !is_user_vaddr (f->esp))) {
-//    printf("Exit -1 in page fault\n");
-    exit(-1, NULL);
   }
+//  if (f->esp < PHYS_BASE) printf("INSIDE\n");
+  printf("fault_addr: %p\n", fault_addr);
+  printf("f->esp: %p\n", f->esp);
+*/
+  if (fault_addr <= 0) exit(-1, NULL);
+  if (fault_addr >= PHYS_BASE || fault_addr <= 0x0FA5A000 ||
+      (user && !is_user_vaddr (f->esp)) ||
+      ((uint32_t *)PHYS_BASE - (uint32_t *)fault_addr > MAX_SIZE))
+	 exit(-1, NULL);
+
   if ((push_check)) {
 //    printf("First If\n");
-    if ((uint32_t *)PHYS_BASE - (uint32_t *)fault_addr > MAX_SIZE) {
-      exit(-1, NULL); 
-      //or kill(f)? Same problem below
-    }
     int pgcount = 1;
-//    pgcount = ((uint32_t)f->esp - (uint32_t)fault_addr) / PGSIZE + 1;   
-
-//    if (f->esp > fault_addr) printf("THIS: %i\n", MAX_SIZE / PGSIZE);
-  
- 
-//    while (pgcount < 8) {
-//      if (f->esp - (pgcount * PGSIZE) > fault_addr) return;
-      
+    while (pgcount < MAX_SIZE / PGSIZE) {
+      if ((f->esp - (pgcount - 1) * PGSIZE) < fault_addr) break;
       void *kpage;
       void *upage = f->esp - ((uint32_t) f->esp % PGSIZE) - (pgcount) * PGSIZE;
-//      void *upage = f->esp - ((uint32_t) f->esp % PGSIZE) - PGSIZE;
       if(user) {
-        kpage = frame_get_page(upage, PAL_ZERO | PAL_USER); //PAL_ZERO as well?
-//        kpage = palloc_get_page(PAL_ZERO | PAL_USER);
+        kpage = frame_get_page(upage, PAL_ZERO | PAL_USER); 
+  //      kpage = palloc_get_page(PAL_ZERO | PAL_USER);
       } else {
         kpage = palloc_get_page(PAL_ZERO | PAL_USER);
       }
@@ -217,38 +206,58 @@ page_fault (struct intr_frame *f)
       set = pagedir_set_page (thread_current()-> pagedir, upage, kpage, true);
       if (!set) exit(-1, NULL);
       pgcount ++;
-//    }
+    }
     return;
   } else
   if (((!not_present || user) && write) || f->esp == fault_addr) {
 //    printf("Second If\n");
-    void *kpage = palloc_get_page(PAL_ZERO);
+//    void *kpage = palloc_get_page(PAL_ZERO);
+/*
+    void *kpage;
     void *upage = f->esp - ((uint32_t) f->esp % PGSIZE);
-//    printf("upage: %p\n", upage);
-//    printf("f->esp: %p\n", f->esp);
+    if(user) {
+      kpage = frame_get_page(upage, PAL_ZERO | PAL_USER); 
+//      kpage = palloc_get_page(PAL_ZERO | PAL_USER);
+    } else {
+      kpage = palloc_get_page(PAL_ZERO | PAL_USER);
+    }
+    if (kpage == NULL) exit(-1, NULL);
     set = pagedir_set_page (thread_current()-> pagedir, upage, kpage, true);
-
-/*    int pgcount;
-    pgcount = ((uint32_t)f->esp - (uint32_t)fault_addr) / PGSIZE + 1;
+    if (!set) exit(-1, NULL);
+*/
+    int pgcount = 0;
     while (pgcount < MAX_SIZE / PGSIZE) {
+      if ((f->esp - (pgcount - 1) * PGSIZE) < fault_addr) break;
       void *kpage;
+      void *upage = f->esp - ((uint32_t) f->esp % PGSIZE) - (pgcount) * PGSIZE;
       if(user) {
-        kpage = frame_get_page(f->esp, PAL_ZERO | PAL_USER); //PAL_ZERO as well?
+        kpage = frame_get_page(upage, PAL_ZERO | PAL_USER); //PAL_ZERO as well?
       } else {
         kpage = palloc_get_page(PAL_ZERO | PAL_USER);
       }
       if (kpage == NULL) exit(-1, NULL);
-      void *upage = f->esp - ((uint32_t) f->esp % PGSIZE) - (pgcount) * PGSIZE;
       set = pagedir_set_page (thread_current()-> pagedir, upage, kpage, true);
-      if (!set) exit(-1, NULL);
+      if (!set) {
+        palloc_free_page (kpage); 
+        exit(-1, NULL);
+      } 
       pgcount ++;
     }
-*/
+
     return;
   } else {
+//  if (!user) {
+//    if (thread_current()->esp == NULL) printf("Thread's esp = NULL\n");
+//    printf("thread's esp: %p\n", thread_current()->esp);
+//    printf("frame's esp: %p\n", f->esp);
+//    void *upage = thread_current()->esp;
+//    void *kpage = palloc_get_page(PAL_ZERO | PAL_USER);
+//    set = pagedir_set_page (thread_current()->pagedir, upage, kpage, true);
+//    return;
+//  } else {
     exit(-1, NULL);
 //    kill(f);
-    return;
+//    return;
   }
   //-----------------------------//
 

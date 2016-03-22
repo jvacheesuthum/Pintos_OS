@@ -178,8 +178,8 @@ start_process (void *file_name_)
 
     push_size = file_name_len + 1;
     push_stack(&if_.esp, push_size);
-    memcpy (if_.esp, file_name, push_size);
     origin = if_.esp;
+    memcpy (if_.esp, file_name, push_size);
 
     //push stack for arguments all at once along with rounding
     push_size = (*(uint32_t *)if_.esp % int_size) 

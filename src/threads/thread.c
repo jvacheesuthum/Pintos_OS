@@ -198,7 +198,7 @@ thread_create (const char *name, int priority,
    /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
- 
+
   /* TASK1 mlfqs: calculate the thread's priority */
   t->needs_update = true;
   if(thread_mlfqs){
