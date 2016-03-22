@@ -413,7 +413,7 @@ munmap (mapid_t mapping) {
       continue;              
     } else {
       if (/*page is dirty*/ false) {
-        write_back(map, start, end - start >= PGSIZE ? PGSIZE, end - start );
+        write_back(map, start, 0, end - start >= PGSIZE ? PGSIZE : end - start );
       }
       frame_pin_page(thread_current()-> tid, start);
       //need to free frame here??
@@ -476,8 +476,9 @@ mapid_less (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUS
 void
 write_back (struct mem_map *mapping, void *from, size_t offset, size_t size)
 {
-  file_seek (mapping->file, offset);
-  file_write (mapping->file, from, size);
+  struct file_map* filemap = get_file_map(mapping-> fd);
+  file_seek (filemap-> filename, offset);
+  file_write (filemap-> filename , from, size);
 }
   
   
