@@ -57,6 +57,7 @@ syscall_handler (struct intr_frame *f)
      esp < PHYS_BASE) {
        exit(RET_ERROR, f);
   }
+
   int syscall_name = *(int *)esp;
   if (syscall_name < SYS_HALT || 
       syscall_name > SYS_INUMBER) 
@@ -260,7 +261,6 @@ read (int fd, void *buffer, unsigned size)
 
 static int
 write (int fd, const void *buffer, unsigned size) {
-
   if (!is_user_vaddr (buffer) || 
       !is_user_vaddr (buffer + size)) {
     exit(RET_ERROR, NULL);
