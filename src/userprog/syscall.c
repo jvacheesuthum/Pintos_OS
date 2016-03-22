@@ -358,7 +358,8 @@ close (int fd, struct intr_frame* f) {
 
 static mapid_t
 mmap (int fd, void *addr) {
-  if (addr == NULL || !addr || *((int*) addr) % PGSIZE == 0 || fd == STDIN_FILENO || fd == STDOUT_FILENO) {
+  if (addr == NULL || addr == 0x0 || pg_ofs(addr) != 0 || fd == STDIN_FILENO || fd == STDOUT_FILENO) {
+  //  printf("invalid input\n");
     return -1;
   }
   lock_acquire(&file_lock);
@@ -366,6 +367,7 @@ mmap (int fd, void *addr) {
   lock_release(&file_lock);
   int size = file_size(opening);
   if (!size || opening == NULL) {  
+    //printf("size = 0 or opening is null\n");
     return -1;
   }
   void* original_addr = addr;
@@ -374,22 +376,24 @@ mmap (int fd, void *addr) {
   while (size > 0) {
  //mapped overlaps existing pages -> retrieve the addr and see if there anything in there - not sure
     if (pagedir_get_page(thread_current()-> pagedir, addr) != NULL) {
+    //  printf("overlaps\n");
       return -1;
     }
     if (size > PGSIZE) {
       int read = file_read(opening, addr, PGSIZE);
-      ASSERT (read == PGSIZE);
+      //ASSERT (read == PGSIZE);
       addr += PGSIZE;
       size -= PGSIZE;
     } else {
       int read = file_read(opening, addr, size);
-      ASSERT (read <= size);
+      //ASSERT (read <= size);
       addr += size;
       break;
     }
   }  
   struct mem_map *memmap = (struct mem_map *) malloc (sizeof (struct mem_map));
   if (memmap == NULL) {
+  // printf("mmap is null\n");
     return -1;
   }
   struct thread* t = thread_current();
@@ -399,6 +403,7 @@ mmap (int fd, void *addr) {
   memmap-> mapid = t-> next_mapid;             //defined in struct thread
   thread_current()-> next_mapid++;
   hash_insert(&t-> mmap_table, &memmap-> hashelem); //hash init in thread.c
+  printf("reached end of mmap\n");
 }
 
 static void
