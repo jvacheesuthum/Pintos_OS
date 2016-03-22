@@ -12,6 +12,7 @@ extern struct lock file_lock;   //lock for manipulating files in process
 //----hash functions---//
 unsigned mapid_hash (const struct hash_elem *p, void *aux);
 bool mapid_less (const struct hash_elem *a, const struct hash_elem *b, void *aux);
+struct lock mem_lock;
 //------------------------//
 typedef int mapid_t;
 #endif
