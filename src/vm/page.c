@@ -144,18 +144,28 @@ cleanup_evicted()
 {
   //1. find the tid hash
   struct spt_entry* found_spt_e = spt_tid_lookup(thread_current()->tid);
-  ASSERT(found_spt_e != NULL);
+  if(found_spt_e == NULL){
+    //exiting thread doesn't have page in swapslot 
+    return;
+  }
   struct hash* found_evicted = found_spt_e->evicted;
   //2. iterate through it
   struct hash_iterator i;
   hash_first(&i,found_evicted);
+  struct ev_entry* prev;
   while(hash_next(&i))
   {
-    //TODO: does each ev_entry have to be freed? // but can't alter hash in iterator
+    if(prev != NULL)
+    {
+      free(prev);
+    }
   //3. find entry in swap table, call remove slot function
+    // free prev
     struct ev_entry* each_ev = hash_entry(hash_cur(&i), struct ev_entry, hash_elem);
     swap_clear_slot(each_ev->upage); 
+    prev = each_ev;
   }
+  free(prev);
 }
 
 /* See 5.1.4 :  
