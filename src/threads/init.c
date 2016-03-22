@@ -103,7 +103,7 @@ main (void)
   paging_init ();
 
   /*task 3: init frame table*/
-  //supp_page_table_init();
+  supp_page_table_init();
   // frame_table_init ();
   //init_swap_table ();
 
