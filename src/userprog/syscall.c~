@@ -57,6 +57,7 @@ syscall_handler (struct intr_frame *f)
      esp < PHYS_BASE) {
        exit(RET_ERROR, f);
   }
+
   int syscall_name = *(int *)esp;
   if (syscall_name < SYS_HALT || 
       syscall_name > SYS_INUMBER) 
@@ -145,7 +146,7 @@ syscall_handler (struct intr_frame *f)
       if (intptr == NULL) exit(RET_ERROR, f);
       close(*(intptr), f); 
       break;
-    /*case SYS_MMAP:
+    case SYS_MMAP:
       intptr = pagedir_get_page(thread_current()-> pagedir, f->esp + INSTR_SIZE);
       addrptr = pagedir_get_page(thread_current()-> pagedir, f->esp + INSTR_SIZE*2);
       if (intptr == NULL || addrptr == NULL) exit(RET_ERROR, f);
@@ -155,7 +156,7 @@ syscall_handler (struct intr_frame *f)
       mapidptr = pagedir_get_page(thread_current()-> pagedir, f->esp + INSTR_SIZE);
       if (intptr == NULL) exit(RET_ERROR, f);
       munmap(*mapidptr);
-      break;*/
+      break;
     default:
       break;
   }
@@ -260,7 +261,6 @@ read (int fd, void *buffer, unsigned size)
 
 static int
 write (int fd, const void *buffer, unsigned size) {
-
   if (!is_user_vaddr (buffer) || 
       !is_user_vaddr (buffer + size)) {
     exit(RET_ERROR, NULL);
@@ -354,7 +354,7 @@ close (int fd, struct intr_frame* f) {
   lock_release(&file_lock);
 }
 
-/*
+
 static mapid_t
 mmap (int fd, void *addr) {
   if (addr == NULL || !addr || *((int*) addr) % PGSIZE == 0 || fd == STDIN_FILENO || fd == STDOUT_FILENO) {
@@ -376,12 +376,13 @@ mmap (int fd, void *addr) {
       return -1;
     }
     if (size > PGSIZE) {
-      //TODO write to one page at addr - dont think its just file read tho....
-      file_read(opening, addr, PGSIZE);
+      int read = file_read(opening, addr, PGSIZE);
+      ASSERT (read == PGSIZE);
       addr += PGSIZE;
       size -= PGSIZE;
     } else {
-      file_read(opening, addr, size);
+      int read = file_read(opening, addr, size);
+      ASSERT (read <= size);
       addr += size;
       break;
     }
@@ -407,11 +408,15 @@ munmap (mapid_t mapping) {
   void* end = map-> end;
   for (start; start < end; start += PGSIZE) {
     void* pg_addr = pagedir_get_page(thread_current()-> pagedir, map->start);
-    //TODO ^^^ replace supppagetable with real one in thread.h
     if (pg_addr == NULL) {
-      continue;              //page might already be freed by some other method, keep checking until the end
+     //page might already be freed by some other method, keep checking until the end
+      continue;              
     } else {
-      //TODO check if page is dirty -> file_write_at back to the mapped file
+      if (/*page is dirty*/ false) {
+        write_back(map, start, 0, end - start >= PGSIZE ? PGSIZE : end - start );
+      }
+      frame_pin_page(thread_current()-> tid, start);
+      //need to free frame here??
       free(pg_addr);
     }
   }
@@ -419,7 +424,7 @@ munmap (mapid_t mapping) {
   free(map);
 }
     
-    */
+    
     
 //-------------------------------------utility fuctions------------------------------------------------//
   
@@ -438,7 +443,7 @@ get_file_map(int fd) {
   }
   return NULL;
 }
-/*
+
 //takes a mapid and returns struct *mem_map that has the corresponding mapid
 struct mem_map*
 get_mem_map (mapid_t mapping) {
@@ -466,8 +471,15 @@ mapid_less (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUS
     const struct mem_map *mapb = hash_entry(b, struct mem_map, hashelem);
     return mapa-> mapid < mapb-> mapid;
 }
-  
-  */
+
+//write data back to  - a file
+void
+write_back (struct mem_map *mapping, void *from, size_t offset, size_t size)
+{
+  file_map* filemap = get_file_map(mapping-> fd);
+  file_seek (filemap-> filename, offset);
+  file_write (filemap-> filename , from, size);
+}
   
   
 
