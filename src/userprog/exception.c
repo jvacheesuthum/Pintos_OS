@@ -11,8 +11,6 @@
 #include "threads/palloc.h"
 #include "vm/page.h"
 
-int STACK_LIMIT = 8000000;
-
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -159,14 +157,14 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  if (not_present || (user && !is_user_vaddr (fault_addr))) exit(-1, NULL);
-/*
+//  if (not_present || (user && !is_user_vaddr (fault_addr))) exit(-1, NULL);
+
   //------------TASK 3-------------//
   //if stack pointer decremented manually, then esp == fault_addr
   bool set;
   bool push_check = (fault_addr == f->esp - 4) || (fault_addr == f->esp - 32);
 //  if (not_present && !push_check) exit(-1, NULL);
-  if (not_present) {
+/*  if (not_present) {
     printf("not_present = true\n");
   } else {
     printf("not_present = false\n");
@@ -180,18 +178,54 @@ page_fault (struct intr_frame *f)
     printf("user = true\n");
   } else {
     printf("user = false\n");
-  }
+  }*/
 //  if (f->esp < PHYS_BASE) printf("INSIDE\n");
 
+  if (fault_addr >= PHYS_BASE || fault_addr <= 0) exit(-1, NULL);
   if ((f->esp == fault_addr || push_check)) {
-    if ((uint32_t *)PHYS_BASE - (uint32_t *)fault_addr > STACK_LIMIT) {
+    if ((uint32_t *)PHYS_BASE - (uint32_t *)fault_addr > MAX_SIZE) {
       exit(-1, NULL); 
       //or kill(f)? Same problem below
     }
 
-    int pgcount;
-    pgcount = ((uint32_t)f->esp - (uint32_t)fault_addr) / PGSIZE + 1;
+    int pgcount = 0;
+    pgcount = ((uint32_t)f->esp - (uint32_t)fault_addr) / PGSIZE + 1;   
+
+//    if (f->esp > fault_addr) printf("THIS: %i\n", MAX_SIZE / PGSIZE);
+  
+ 
     while (pgcount < 8) {
+      if (f->esp - (pgcount * PGSIZE) > fault_addr) return;
+      
+      void *kpage;
+      void *upage = f->esp - ((uint32_t) f->esp % PGSIZE) - (pgcount) * PGSIZE;
+      if(user) {
+        kpage = frame_get_page(upage, PAL_ZERO | PAL_USER); //PAL_ZERO as well?
+//        kpage = palloc_get_page(PAL_ZERO | PAL_USER);
+      } else {
+        kpage = palloc_get_page(PAL_ZERO | PAL_USER);
+      }
+      
+      if (kpage == NULL) exit(-1, NULL);
+      set = pagedir_set_page (thread_current()-> pagedir, upage, kpage, true);
+      if (!set) exit(-1, NULL);
+      pgcount ++;
+    }
+    return;
+  }
+  if ((!not_present || user) && write) {
+    if (!is_user_vaddr (fault_addr) ||
+        (user && !is_user_vaddr (f->esp))) exit (-1, NULL);
+    void *kpage = palloc_get_page(PAL_ZERO);
+    void *upage = f->esp - ((uint32_t) f->esp % PGSIZE);
+    if (user && !is_user_vaddr (f->esp)) exit(-1, NULL);
+//    printf("upage: %p\n", upage);
+//    printf("f->esp: %p\n", f->esp);
+    set = pagedir_set_page (thread_current()-> pagedir, upage, kpage, true);
+
+/*    int pgcount;
+    pgcount = ((uint32_t)f->esp - (uint32_t)fault_addr) / PGSIZE + 1;
+    while (pgcount < MAX_SIZE / PGSIZE) {
       void *kpage;
       if(user) {
         kpage = frame_get_page(f->esp, PAL_ZERO | PAL_USER); //PAL_ZERO as well?
@@ -204,29 +238,21 @@ page_fault (struct intr_frame *f)
       if (!set) exit(-1, NULL);
       pgcount ++;
     }
-    return;
-  }
-  if (!not_present && write) {
-    void *kpage = palloc_get_page(PAL_ZERO);
-    void *upage = f->esp - ((uint32_t) f->esp % PGSIZE);
-    if (user && !is_user_vaddr (f->esp)) exit(-1, NULL);
-//    printf("upage: %p\n", upage);
-//    printf("f->esp: %p\n", f->esp);
-    set = pagedir_set_page (thread_current()-> pagedir, upage, kpage, true);
+*/
     return;
   } else {
     exit(-1, NULL);
   }
   //-----------------------------//
-*/
+
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
+/*  printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
-    kill (f);
+    kill (f);*/
 }
 

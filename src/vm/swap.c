@@ -171,17 +171,24 @@ get_free_slot(void)
   }
 }
 
+// reads kpage size of data (8 sectors) from begin to kpage
 void 
-swap_read(block_sector_t slot_begin_sector, void* buffer)
+swap_read(block_sector_t begin, void* kpage)
 {
-  // TODO: read for 8 sectors
-  //block_read(swap_table.swap_block, sector, free_frame);
+  int i;
+  for (i = 0; i < PGSIZE/BLOCK_SECTOR_SIZE; i++) {
+    block_read(swap_table.swap_block, begin + i, kpage + BLOCK_SECTOR_SIZE*i);
+  }
 }
 
+//writes kpage size of data (8 sectors) from kpage to begin
 void 
-swap_write(block_sector_t slot_begin_sector, void* buffer)
+swap_write(block_sector_t begin, void* kpage)
 {
-  //TODO: block_write for 8 sectors
+  int i;
+  for (i = 0; i < PGSIZE/BLOCK_SECTOR_SIZE; i++) {
+    block_write(swap_table.swap_block, begin + i, kpage + BLOCK_SECTOR_SIZE*i);
+  }
 }
 
 /*
