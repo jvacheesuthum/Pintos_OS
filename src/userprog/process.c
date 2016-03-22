@@ -294,7 +294,7 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-//  frame_free_page(cur->tid);
+  frame_free_page(cur->tid);
   //----------Task 2-------------//
   if (!list_empty(&cur->process_wait_sema.waiters)) {
     sema_up(&cur->process_wait_sema);  
