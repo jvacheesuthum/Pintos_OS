@@ -8,6 +8,7 @@
 #include "vm/page.h"
 #include <stddef.h>
 #include <debug.h>
+#include <stdio.h>
 
 void frame_free_page(tid_t thread);
 void frame_pin_page(tid_t thread, uint8_t* upage);
@@ -35,7 +36,7 @@ frame_table_init(void)
 void*
 evict(uint8_t *newpage)
 { 
-  
+//  printf("started eviction\n"); 
   // cannot evict empty list (and should not)
   ASSERT(!list_empty(&frame_table));
 
@@ -50,7 +51,6 @@ evict(uint8_t *newpage)
     toevict = list_entry(e, struct frame, elem);
     pd = (get_thread(toevict->thread))->pagedir; 
   }
-  
   // found unaccessed page, evict
   list_remove(e);
   // remove pagedir entry for evicted page
@@ -59,12 +59,13 @@ evict(uint8_t *newpage)
   spt_mark_evicted(toevict->thread, toevict->upage);
   // place contenets into swap. should need to save the thread and upage too.
    evict_to_swap(toevict->thread, toevict->upage, toevict->physical);
-  // change frame to newpage
+// change frame to newpage
   toevict->thread = thread_current()->tid;
   toevict->upage = newpage;
   list_push_back(&frame_table, e);
 
   return toevict->physical;
+//  printf("eviction complete\n");
 }
 
 // only for user processes. 
@@ -100,6 +101,7 @@ frame_get_page(void* raw_upage, enum palloc_flags flags)
   entry->physical = result;
   entry->pinned = false;
   list_push_back(&frame_table, &entry->elem);
+//  printf("thread %d putting upage %d to kpage %d\n", entry->thread, upage, result);
 
   return result;
 

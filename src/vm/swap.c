@@ -10,7 +10,7 @@
 #include "vm/page.h"
 #include "list.h"
 #include "devices/block.h"
-
+#include <stdio.h>
 
 struct swap_table
 {
@@ -109,8 +109,9 @@ void
 evict_to_swap(tid_t tid, void *raw_upage, void* kpage)
 {
   block_sector_t free_slot = get_free_slot();
+  //printf("got a free slot, writing from kpage %d\n", kpage);
   swap_write(free_slot, kpage);
-
+  //printf("swap wrote\n");
   struct swap_table_entry* ste = ste_malloc_init(tid, raw_upage);
   ste->swap_slot = free_slot;
   struct hash_elem* old = hash_insert(&swap_table.swap_hash_table, &ste->hash_elem);
@@ -177,7 +178,7 @@ swap_read(block_sector_t begin, void* kpage)
 {
   int i;
   for (i = 0; i < PGSIZE/BLOCK_SECTOR_SIZE; i++) {
-    block_read(swap_table.swap_block, begin + i, kpage + BLOCK_SECTOR_SIZE*i);
+    block_read(block_get_role(BLOCK_SWAP), begin + i, kpage + BLOCK_SECTOR_SIZE*i);
   }
 }
 
@@ -187,7 +188,10 @@ swap_write(block_sector_t begin, void* kpage)
 {
   int i;
   for (i = 0; i < PGSIZE/BLOCK_SECTOR_SIZE; i++) {
-    block_write(swap_table.swap_block, begin + i, kpage + BLOCK_SECTOR_SIZE*i);
+    //printf("i is %d\n", i);
+    //printf("begin is %d\n", begin +i);
+    //printf("page is %d\n", kpage + BLOCK_SECTOR_SIZE*i);
+    block_write(block_get_role(BLOCK_SWAP), begin + i, kpage + BLOCK_SECTOR_SIZE*i);
   }
 }
 
