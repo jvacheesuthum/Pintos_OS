@@ -1,6 +1,7 @@
 #include "userprog/pagedir.h"
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 #include "threads/init.h"
 #include "threads/pte.h"
@@ -133,7 +134,9 @@ pagedir_get_page (uint32_t *pd, const void *uaddr)
       return pte_get_page (*pte) + pg_ofs (uaddr);
 
     // page is not in pagedir, but might be in swap
-    return supp_pt_locate_fault(uaddr); //should return null if can't find in swap table
+   // printf("try supp pt locate");
+    return  supp_pt_locate_fault(uaddr);
+    //should return null if can't find in swap table
    }
   return NULL;
 }

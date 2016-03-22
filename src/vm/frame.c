@@ -64,8 +64,8 @@ evict(uint8_t *newpage)
   toevict->upage = newpage;
   list_push_back(&frame_table, e);
 
-  return toevict->physical;
 //  printf("eviction complete\n");
+  return toevict->physical;
 }
 
 // only for user processes. 

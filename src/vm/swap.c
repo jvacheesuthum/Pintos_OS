@@ -2,7 +2,7 @@
 #include <debug.h>
 #include "threads/thread.h"
 #include "devices/block.h"
-#include "hash.h"
+#include <hash.h>
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
 #include "threads/palloc.h"
@@ -115,6 +115,7 @@ evict_to_swap(tid_t tid, void *raw_upage, void* kpage)
   struct swap_table_entry* ste = ste_malloc_init(tid, raw_upage);
   ste->swap_slot = free_slot;
   struct hash_elem* old = hash_insert(&swap_table.swap_hash_table, &ste->hash_elem);
+  //printf("size of swap table is %d\n",hash_size(&swap_table.swap_hash_table));
   if(old != NULL){
     ASSERT (false); //probably indicates bugs
   }
@@ -125,7 +126,10 @@ swap_restore_page(void* raw_upage)
 {
   void* upage = pg_round_down (raw_upage);
   struct swap_table_entry* found_swe = swap_hash_table_remove(thread_current()->tid, raw_upage);
-  if(found_swe == NULL) { return NULL; }
+  if(found_swe == NULL) {
+  //`  printf("always null!");
+     return NULL; }
+  printf("not null");
   block_sector_t slot = found_swe->swap_slot;
   free(found_swe);
 

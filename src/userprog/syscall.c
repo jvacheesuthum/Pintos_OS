@@ -58,6 +58,9 @@ syscall_handler (struct intr_frame *f)
        exit(RET_ERROR, f);
   }
 
+//  printf("Syscall esp: %p\n", f->esp);
+//  thread_current()->esp = f->esp;
+
   int syscall_name = *(int *)esp;
   if (syscall_name < SYS_HALT || 
       syscall_name > SYS_INUMBER) 
@@ -252,7 +255,8 @@ read (int fd, void *buffer, unsigned size)
         return RET_ERROR;
       }
       lock_acquire(&file_lock);
-//      printf("HERERERE\n");
+//      printf("filename: %p\n", file_map->filename);
+//      printf("buffer: %p\n", buffer);
       int read = file_read (file_map->filename, buffer, size);
 //      printf("THERERERE\n");
       lock_release(&file_lock);
