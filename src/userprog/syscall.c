@@ -376,12 +376,13 @@ mmap (int fd, void *addr) {
       return -1;
     }
     if (size > PGSIZE) {
-      //TODO write to one page at addr - dont think its just file read tho....
-      file_read(opening, addr, PGSIZE);
+      int read = file_read(opening, addr, PGSIZE);
+      ASSERT (read == PGSIZE);
       addr += PGSIZE;
       size -= PGSIZE;
     } else {
-      file_read(opening, addr, size);
+      int read = file_read(opening, addr, size);
+      ASSERT (read <= size);
       addr += size;
       break;
     }
@@ -407,11 +408,15 @@ munmap (mapid_t mapping) {
   void* end = map-> end;
   for (start; start < end; start += PGSIZE) {
     void* pg_addr = pagedir_get_page(thread_current()-> pagedir, map->start);
-    //TODO ^^^ replace supppagetable with real one in thread.h
     if (pg_addr == NULL) {
-      continue;              //page might already be freed by some other method, keep checking until the end
+     //page might already be freed by some other method, keep checking until the end
+      continue;              
     } else {
-      //TODO check if page is dirty -> file_write_at back to the mapped file
+      if (/*page is dirty*/ false) {
+        write_back(map, start, end - start >= PGSIZE ? PGSIZE, end - start );
+      }
+      frame_pin_page(thread_current()-> tid, start);
+      //need to free frame here??
       free(pg_addr);
     }
   }
@@ -466,8 +471,14 @@ mapid_less (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUS
     const struct mem_map *mapb = hash_entry(b, struct mem_map, hashelem);
     return mapa-> mapid < mapb-> mapid;
 }
-  
-  
+
+//write data back to  - a file
+void
+write_back (struct mem_map *mapping, void *from, size_t offset, size_t size)
+{
+  file_seek (mapping->file, offset);
+  file_write (mapping->file, from, size);
+}
   
   
 
