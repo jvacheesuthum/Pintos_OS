@@ -333,6 +333,8 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 
+  // free swap slot
+  cleanup_evicted() ;
   // free frame used
   frame_free_page(cur->tid);
   //allows write to executable file after exit -----
