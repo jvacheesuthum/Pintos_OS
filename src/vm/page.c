@@ -160,7 +160,7 @@ supp_pt_locate_fault (void* upage)
     ///return kpage;
   } 
   // TODO: check if fault causes by writing to read-only page is already covered here. (it should)
-  process_exit();
+//  process_exit();
   return NULL;
 }
 
