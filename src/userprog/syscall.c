@@ -28,13 +28,13 @@ static int write (int fd, const void *buffer, unsigned size);
 static void seek (int fd, unsigned position, struct intr_frame *f);
 static unsigned tell (int fd, struct intr_frame *f);
 static void close (int fd, struct intr_frame *f);
-//static mapid_t mmap (int fd, void *addr);
-//static void munmap (mapid_t mapping);
+static mapid_t mmap (int fd, void *addr);
+static void munmap (mapid_t mapping);
 struct file_map* get_file_map(int fd); 
-//struct mem_map* get_mem_map (mapid_t mapping);
+struct mem_map* get_mem_map (mapid_t mapping);
 struct lock file_lock; 
-//unsigned mapid_hash (const struct hash_elem *p, void *aux UNUSED);
-//bool mapid_less (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
+unsigned mapid_hash (const struct hash_elem *p, void *aux UNUSED);
+bool mapid_less (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
 
 
 void
@@ -67,7 +67,7 @@ syscall_handler (struct intr_frame *f)
   unsigned* uptr;
   void* endofbuff;
   void* addrptr;
-  //mapid_t* mapidptr;
+  mapid_t* mapidptr;
 
 
   //TASK 3 Stack growth, have to find syscalls that write to stack???
@@ -145,7 +145,7 @@ syscall_handler (struct intr_frame *f)
       if (intptr == NULL) exit(RET_ERROR, f);
       close(*(intptr), f); 
       break;
-    /*case SYS_MMAP:
+    case SYS_MMAP:
       intptr = pagedir_get_page(thread_current()-> pagedir, f->esp + INSTR_SIZE);
       addrptr = pagedir_get_page(thread_current()-> pagedir, f->esp + INSTR_SIZE*2);
       if (intptr == NULL || addrptr == NULL) exit(RET_ERROR, f);
@@ -155,7 +155,7 @@ syscall_handler (struct intr_frame *f)
       mapidptr = pagedir_get_page(thread_current()-> pagedir, f->esp + INSTR_SIZE);
       if (intptr == NULL) exit(RET_ERROR, f);
       munmap(*mapidptr);
-      break;*/
+      break;
     default:
       break;
   }
@@ -354,7 +354,7 @@ close (int fd, struct intr_frame* f) {
   lock_release(&file_lock);
 }
 
-/*
+
 static mapid_t
 mmap (int fd, void *addr) {
   if (addr == NULL || !addr || *((int*) addr) % PGSIZE == 0 || fd == STDIN_FILENO || fd == STDOUT_FILENO) {
@@ -419,7 +419,7 @@ munmap (mapid_t mapping) {
   free(map);
 }
     
-    */
+    
     
 //-------------------------------------utility fuctions------------------------------------------------//
   
@@ -438,7 +438,7 @@ get_file_map(int fd) {
   }
   return NULL;
 }
-/*
+
 //takes a mapid and returns struct *mem_map that has the corresponding mapid
 struct mem_map*
 get_mem_map (mapid_t mapping) {
@@ -467,7 +467,7 @@ mapid_less (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUS
     return mapa-> mapid < mapb-> mapid;
 }
   
-  */
+  
   
   
 

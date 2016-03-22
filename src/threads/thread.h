@@ -128,10 +128,10 @@ struct thread
     int next_fd;                        //next available fd for opening files in user program
     struct file *execfile;
 #endif
-/*#ifdef VM
+#ifdef VM
     int next_mapid;                     //next available mapid for mapping files to memory
     struct hash mmap_table;             //table for memory mapped files
-#endif*/
+#endif
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
