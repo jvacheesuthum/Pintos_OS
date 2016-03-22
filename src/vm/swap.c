@@ -115,7 +115,7 @@ evict_to_swap(tid_t tid, void *raw_upage, void* kpage)
   struct swap_table_entry* ste = ste_malloc_init(tid, raw_upage);
   ste->swap_slot = free_slot;
   struct hash_elem* old = hash_insert(&swap_table.swap_hash_table, &ste->hash_elem);
-  printf("size of swap table is %d\n",hash_size(&swap_table.swap_hash_table));
+  //printf("size of swap table is %d\n",hash_size(&swap_table.swap_hash_table));
   if(old != NULL){
     ASSERT (false); //probably indicates bugs
   }
