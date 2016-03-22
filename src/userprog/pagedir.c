@@ -5,7 +5,7 @@
 #include "threads/init.h"
 #include "threads/pte.h"
 #include "threads/palloc.h"
-#include "vm/swap.h"
+#include "vm/page.h"
 
 static uint32_t *active_pd (void);
 static void invalidate_pagedir (uint32_t *);
@@ -133,7 +133,7 @@ pagedir_get_page (uint32_t *pd, const void *uaddr)
       return pte_get_page (*pte) + pg_ofs (uaddr);
 
     // page is not in pagedir, but might be in swap
-    //return supp_pt_locate_fault(uaddr);
+    return supp_pt_locate_fault(uaddr);
    }
   return NULL;
 }
