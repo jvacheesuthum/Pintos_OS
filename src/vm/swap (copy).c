@@ -10,7 +10,6 @@
 #include "vm/page.h"
 #include "list.h"
 #include "devices/block.h"
-#include "threads/synch.h"
 #include <stdio.h>
 
 struct swap_table
@@ -20,7 +19,6 @@ struct swap_table
                             everytime a page is put into new slot of swap_block */
   struct list free_slots; /* looks in here to see free slot first, if empty then request new slot */
   struct hash swap_hash_table;
-  struct lock swap_lock;
 };
 
 struct free_slot
@@ -104,14 +102,12 @@ init_swap_table(void)
   swap_table.new_swap_slot = 0; 
   list_init(&swap_table.free_slots);
   hash_init(&swap_table.swap_hash_table, swap_table_hash, swap_table_less, NULL);
-  lock_init(&swap_table.swap_lock);
 }
 
 // write into swap block and insert new entry into swap_hash_table
 void
 evict_to_swap(tid_t tid, void *raw_upage, void* kpage)
 {
-  lock_acquire(&swap_table.swap_lock);
   block_sector_t free_slot = get_free_slot();
   //printf("got a free slot, writing from kpage %d\n", kpage);
   swap_write(free_slot, kpage);
@@ -120,18 +116,16 @@ evict_to_swap(tid_t tid, void *raw_upage, void* kpage)
   ste->swap_slot = free_slot;
   struct hash_elem* old = hash_insert(&swap_table.swap_hash_table, &ste->hash_elem);
   //printf("size of swap table is %d\n",hash_size(&swap_table.swap_hash_table));
-  lock_release(&swap_table.swap_lock);
   if(old != NULL){
     ASSERT (false); //probably indicates bugs
   }
 }
 
 void*
-swap_restore_page(tid_t tid, void* raw_upage)
+swap_restore_page(void* raw_upage)
 {
-//  lock_acquire(&swap_table.swap_lock);
   void* upage = pg_round_down (raw_upage);
-  struct swap_table_entry* found_swe = swap_hash_table_remove(tid, raw_upage);
+  struct swap_table_entry* found_swe = swap_hash_table_remove(thread_current()->tid, raw_upage);
   if(found_swe == NULL) {
   //`  printf("always null!");
      return NULL; }
@@ -147,8 +141,8 @@ swap_restore_page(tid_t tid, void* raw_upage)
   list_push_back (&swap_table.free_slots, &fs->elem);
 
   //set evicted back to 0
-  spt_unmark_evicted(tid, upage);
-//  lock_release(&swap_table.swap_lock);
+  spt_unmark_evicted(thread_current()->tid, upage);
+
   return found_frame;
 }
 
@@ -156,7 +150,6 @@ swap_restore_page(tid_t tid, void* raw_upage)
 void
 swap_clear_slot(void* raw_upage)
 {
-  lock_acquire(&swap_table.swap_lock);
   void* upage = pg_round_down (raw_upage);
   struct swap_table_entry* found_swe = swap_hash_table_remove(thread_current()->tid, raw_upage);
   ASSERT(found_swe != NULL);
@@ -166,23 +159,19 @@ swap_clear_slot(void* raw_upage)
   struct free_slot* fs = malloc(sizeof(struct free_slot));
   fs->slot_begin = slot;
   list_push_back (&swap_table.free_slots, &fs->elem);
-  lock_release(&swap_table.swap_lock);
 }
 
 block_sector_t
 get_free_slot(void)
 {
-  lock_acquire(&swap_table.swap_lock);
   if(!list_empty(&swap_table.free_slots)){
     struct free_slot* fs = list_entry (list_pop_front(&swap_table.free_slots), struct free_slot, elem);
     block_sector_t res = fs->slot_begin;
     free(fs);
-    lock_release(&swap_table.swap_lock);
     return res;
   } else {
     block_sector_t res = swap_table.new_swap_slot;
     swap_table.new_swap_slot += PGSIZE/BLOCK_SECTOR_SIZE;
-    lock_release(&swap_table.swap_lock);
     return res;
   }
 }

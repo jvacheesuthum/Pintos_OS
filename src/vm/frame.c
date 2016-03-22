@@ -6,6 +6,7 @@
 #include "userprog/pagedir.h"
 #include "vm/swap.h"
 #include "vm/page.h"
+#include "threads/synch.h"
 #include <stddef.h>
 #include <debug.h>
 #include <stdio.h>
@@ -25,11 +26,13 @@ struct frame
   };
 
 static struct list frame_table;
+static struct lock frame_lock;
 
 void 
 frame_table_init(void) 
 {
   list_init(&frame_table);
+  lock_init(&frame_lock);
 }
 
 // eviction according to second chance
@@ -73,6 +76,7 @@ evict(uint8_t *newpage)
 void* 
 frame_get_page(void* raw_upage, enum palloc_flags flags)
 {
+  lock_acquire (&frame_lock);
   ASSERT (flags & PAL_USER)
   void* upage = pg_round_down (raw_upage); 
 
@@ -91,6 +95,7 @@ frame_get_page(void* raw_upage, enum palloc_flags flags)
   // if eviction was not successfull, panic
     ASSERT (result != NULL);
   // no need to add entry.
+    lock_release(&frame_lock);
     return result;
   }
 
@@ -102,7 +107,7 @@ frame_get_page(void* raw_upage, enum palloc_flags flags)
   entry->pinned = false;
   list_push_back(&frame_table, &entry->elem);
 //  printf("thread %d putting upage %d to kpage %d\n", entry->thread, upage, result);
-
+  lock_release(&frame_lock);
   return result;
 
 }
@@ -110,6 +115,7 @@ frame_get_page(void* raw_upage, enum palloc_flags flags)
 void 
 frame_free_page(tid_t thread)
 {
+  lock_acquire(&frame_lock);
   struct list_elem* e = list_begin(&frame_table);
   while (e != list_end(&frame_table))
   {
@@ -120,10 +126,12 @@ frame_free_page(tid_t thread)
     }
     else e = list_next(e);
   }
+  lock_release(&frame_lock);
 }
 
 void frame_pin_page(tid_t thread, uint8_t* upage)
 {
+  lock_acquire(&frame_lock);
   struct frame* topin = NULL;
   struct list_elem* e = list_end(&frame_table);
   while (e != list_begin(&frame_table) && topin != NULL)
@@ -139,4 +147,5 @@ void frame_pin_page(tid_t thread, uint8_t* upage)
     topin->pinned = true;
   }
   else ASSERT (false);
+  lock_release(&frame_lock);
 }

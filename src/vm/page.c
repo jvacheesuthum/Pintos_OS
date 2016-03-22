@@ -171,7 +171,7 @@ cleanup_evicted()
 /* See 5.1.4 :  
  * returns the location of the data belongs to upage that causes pagefault */
 void*
-supp_pt_locate_fault (void* upage)
+supp_pt_locate_fault (tid_t tid, void* upage)
 {
   
   if(is_user_vaddr(upage)){
@@ -180,7 +180,7 @@ supp_pt_locate_fault (void* upage)
     /* (2): obtain a frame to store the page: done in swap_restore_page => frame_get_page*/
     /* (3) fetch data into frame : done in swap_restore_page */
     /* (4) point the page table entry for the faulting virtual address to frame : done in swap_restore_page => frame_get_page*/
-    void* kpage = swap_restore_page(upage);
+    void* kpage = swap_restore_page(tid, upage);
     return kpage;
   } 
   // TODO: check if fault causes by writing to read-only page is already covered here. (it should)

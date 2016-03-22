@@ -14,6 +14,6 @@ void spt_unmark_evicted(tid_t tid, void* upage);
 
 void cleanup_evicted(void); //use when process exit to clean up resources used for evicted and make swap slots as free
 
-void* supp_pt_locate_fault (void* upage);
+void* supp_pt_locate_fault (tid_t tid, void* upage);
 
 #endif
