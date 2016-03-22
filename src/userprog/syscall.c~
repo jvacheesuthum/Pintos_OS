@@ -70,7 +70,6 @@ syscall_handler (struct intr_frame *f)
   void* addrptr;
   mapid_t* mapidptr;
 
-
   //TASK 3 Stack growth, have to find syscalls that write to stack???
 
 
@@ -253,7 +252,9 @@ read (int fd, void *buffer, unsigned size)
         return RET_ERROR;
       }
       lock_acquire(&file_lock);
+//      printf("HERERERE\n");
       int read = file_read (file_map->filename, buffer, size);
+//      printf("THERERERE\n");
       lock_release(&file_lock);
       return read;
   }
@@ -412,7 +413,7 @@ munmap (mapid_t mapping) {
      //page might already be freed by some other method, keep checking until the end
       continue;              
     } else {
-      if (/*page is dirty*/ false) {
+      if (pagedir_is_dirty(thread_current()-> pagedir, start) {
         write_back(map, start, 0, end - start >= PGSIZE ? PGSIZE : end - start );
       }
       frame_pin_page(thread_current()-> tid, start);
@@ -476,7 +477,7 @@ mapid_less (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUS
 void
 write_back (struct mem_map *mapping, void *from, size_t offset, size_t size)
 {
-  file_map* filemap = get_file_map(mapping-> fd);
+  struct file_map* filemap = get_file_map(mapping-> fd);
   file_seek (filemap-> filename, offset);
   file_write (filemap-> filename , from, size);
 }

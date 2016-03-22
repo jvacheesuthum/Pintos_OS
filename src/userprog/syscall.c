@@ -413,7 +413,7 @@ munmap (mapid_t mapping) {
      //page might already be freed by some other method, keep checking until the end
       continue;              
     } else {
-      if (/*page is dirty*/ false) {
+      if (pagedir_is_dirty(thread_current()-> pagedir, start)) {
         write_back(map, start, 0, end - start >= PGSIZE ? PGSIZE : end - start );
       }
       frame_pin_page(thread_current()-> tid, start);
