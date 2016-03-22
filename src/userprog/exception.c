@@ -180,25 +180,32 @@ page_fault (struct intr_frame *f)
     printf("user = false\n");
   }*/
 //  if (f->esp < PHYS_BASE) printf("INSIDE\n");
+//  printf("fault_addr: %p\n", fault_addr);
+//  printf("f->esp: %p\n", f->esp);
 
-  if (fault_addr >= PHYS_BASE || fault_addr <= 0) exit(-1, NULL);
-  if ((f->esp == fault_addr || push_check)) {
+  if (fault_addr >= PHYS_BASE || fault_addr <= 0 ||
+      (user && !is_user_vaddr (f->esp))) {
+//    printf("Exit -1 in page fault\n");
+    exit(-1, NULL);
+  }
+  if ((push_check)) {
+//    printf("First If\n");
     if ((uint32_t *)PHYS_BASE - (uint32_t *)fault_addr > MAX_SIZE) {
       exit(-1, NULL); 
       //or kill(f)? Same problem below
     }
-
-    int pgcount = 0;
-    pgcount = ((uint32_t)f->esp - (uint32_t)fault_addr) / PGSIZE + 1;   
+    int pgcount = 1;
+//    pgcount = ((uint32_t)f->esp - (uint32_t)fault_addr) / PGSIZE + 1;   
 
 //    if (f->esp > fault_addr) printf("THIS: %i\n", MAX_SIZE / PGSIZE);
   
  
-    while (pgcount < 8) {
-      if (f->esp - (pgcount * PGSIZE) > fault_addr) return;
+//    while (pgcount < 8) {
+//      if (f->esp - (pgcount * PGSIZE) > fault_addr) return;
       
       void *kpage;
       void *upage = f->esp - ((uint32_t) f->esp % PGSIZE) - (pgcount) * PGSIZE;
+//      void *upage = f->esp - ((uint32_t) f->esp % PGSIZE) - PGSIZE;
       if(user) {
         kpage = frame_get_page(upage, PAL_ZERO | PAL_USER); //PAL_ZERO as well?
 //        kpage = palloc_get_page(PAL_ZERO | PAL_USER);
@@ -210,15 +217,13 @@ page_fault (struct intr_frame *f)
       set = pagedir_set_page (thread_current()-> pagedir, upage, kpage, true);
       if (!set) exit(-1, NULL);
       pgcount ++;
-    }
+//    }
     return;
-  }
-  if ((!not_present || user) && write) {
-    if (!is_user_vaddr (fault_addr) ||
-        (user && !is_user_vaddr (f->esp))) exit (-1, NULL);
+  } else
+  if (((!not_present || user) && write) || f->esp == fault_addr) {
+//    printf("Second If\n");
     void *kpage = palloc_get_page(PAL_ZERO);
     void *upage = f->esp - ((uint32_t) f->esp % PGSIZE);
-    if (user && !is_user_vaddr (f->esp)) exit(-1, NULL);
 //    printf("upage: %p\n", upage);
 //    printf("f->esp: %p\n", f->esp);
     set = pagedir_set_page (thread_current()-> pagedir, upage, kpage, true);
@@ -242,6 +247,8 @@ page_fault (struct intr_frame *f)
     return;
   } else {
     exit(-1, NULL);
+//    kill(f);
+    return;
   }
   //-----------------------------//
 
@@ -252,6 +259,7 @@ page_fault (struct intr_frame *f)
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
+q
           user ? "user" : "kernel");
     kill (f);*/
 }
