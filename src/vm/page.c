@@ -151,6 +151,7 @@ cleanup_evicted()
   hash_first(&i,found_evicted);
   while(hash_next(&i))
   {
+    //TODO: does each ev_entry have to be freed? // but can't alter hash in iterator
   //3. find entry in swap table, call remove slot function
     struct ev_entry* each_ev = hash_entry(hash_cur(&i), struct ev_entry, hash_elem);
     swap_clear_slot(each_ev->upage); 

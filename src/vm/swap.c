@@ -136,7 +136,7 @@ swap_restore_page(void* raw_upage)
   list_push_back (&swap_table.free_slots, &fs->elem);
 
   //set evicted back to 0
-  ///spt_unmark_evicted(thread_current()->tid, upage);
+  spt_unmark_evicted(thread_current()->tid, upage);
 
   return found_frame;
 }
