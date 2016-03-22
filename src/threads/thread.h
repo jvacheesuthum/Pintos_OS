@@ -131,6 +131,7 @@ struct thread
 #ifdef VM
     int next_mapid;                     //next available mapid for mapping files to memory
     struct hash mmap_table;             //table for memory mapped files
+    void *esp;
 #endif
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
