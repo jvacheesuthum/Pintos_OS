@@ -7,7 +7,7 @@
 
 void init_swap_table(void);
 void evict_to_swap(tid_t thread, void *raw_upage, void* kpage);
-void* swap_restore_page(void* raw_upage);  /* raw because user virtual address might not have been rounded down
+void* swap_restore_page(tid_t tid, void* raw_upage);  /* raw because user virtual address might not have been rounded down
                                               ie bit 0-11 is still the offset of the page */
 
 void swap_clear_slot(void* raw_upage);

@@ -135,7 +135,7 @@ pagedir_get_page (uint32_t *pd, const void *uaddr)
 
     // page is not in pagedir, but might be in swap
    // printf("try supp pt locate");
-    return  supp_pt_locate_fault(uaddr);
+    return  supp_pt_locate_fault(thread_current()->tid, uaddr);
     //should return null if can't find in swap table
    }
   return NULL;
