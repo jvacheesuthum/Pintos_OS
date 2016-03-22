@@ -129,7 +129,7 @@ evict_to_swap(tid_t tid, void *raw_upage, void* kpage)
 void*
 swap_restore_page(tid_t tid, void* raw_upage)
 {
-  lock_acquire(&swap_table.swap_lock);
+//  lock_acquire(&swap_table.swap_lock);
   void* upage = pg_round_down (raw_upage);
   struct swap_table_entry* found_swe = swap_hash_table_remove(tid, raw_upage);
   if(found_swe == NULL) {
@@ -148,7 +148,7 @@ swap_restore_page(tid_t tid, void* raw_upage)
 
   //set evicted back to 0
   spt_unmark_evicted(tid, upage);
-  lock_release(&swap_table.swap_lock);
+//  lock_release(&swap_table.swap_lock);
   return found_frame;
 }
 
