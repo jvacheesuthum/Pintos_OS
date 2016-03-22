@@ -247,7 +247,7 @@ thread_create (const char *name, int priority,
   if(thread_current() == initial_thread){
     list_init(&thread_current()->children_processes);
   }
-  sema_init(&t->process_wait_sema, 0);
+  sema_init(&t->old_process_wait_sema, 0);
 
   struct child_process *cp = (struct child_process *) malloc(sizeof(struct child_process));
   child_process_init(cp, t->tid); 
@@ -270,6 +270,8 @@ thread_create (const char *name, int priority,
 void child_process_init(struct child_process* cp, tid_t tid){
   cp->tid = tid;
   cp->waited = false;
+  cp->cp_process_wait_sema = malloc(sizeof(struct semaphore));
+  sema_init(cp->cp_process_wait_sema,0);
   cp->exit_status = -1;     // set default as -1 becuase any termination other than with exit() will cause status -1
 }
 #endif

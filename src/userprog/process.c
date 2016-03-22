@@ -79,7 +79,7 @@ process_execute (const char *file_name)
   }
   free(fn_copy2);
   struct thread* t = get_thread(tid);
-  sema_down(&t->process_wait_sema);
+  ///sema_down(&t->old_process_wait_sema);
  //-----------------------------------
 //  struct thread *tc = thread_current();
 //  struct list_elem *e;
@@ -220,7 +220,7 @@ start_process (void *file_name_)
      and jump to it. */
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
-  sema_up(&thread_current()-> process_wait_sema); 
+  ///sema_up(&thread_current()-> old_process_wait_sema); 
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
@@ -236,7 +236,7 @@ int
 process_wait (tid_t child_tid) 
 {
   // -------------------------------------------------------------------------------- exit lock 
-  struct thread *child = get_thread(child_tid);
+///  struct thread *child = get_thread(child_tid);
   struct child_process *cp 
     = get_child_process(child_tid, &thread_current()->children_processes);
   // if child's exit is called between here and the end of if statements if(child==NULL) might 
@@ -246,7 +246,6 @@ process_wait (tid_t child_tid)
     /* will not race because only current thread can create new cp*/
     return RET_ERROR;
   }
-  
   if(cp->waited == true){
     /*process_wait has already been called on it*/
     /* will not race because cp->wait will only be chaged here in this function
@@ -254,21 +253,24 @@ process_wait (tid_t child_tid)
     return RET_ERROR;
   }
   cp->waited = true;
-  if(child == NULL){
+  //>>>
+  sema_down(cp->cp_process_wait_sema);
+  return cp->exit_status;
+  
+///  if(child == NULL){
     /*child thread no longer exist, ie terminated 
       if terminated by kernel will return -1*/
     /* will not race because only the current thread can create a new child i
      * so if get_thread returns NULL it will not change */
-    return cp->exit_status;
-  }
+///    return cp->exit_status;
 
 
   //---------------------------------------------------------------------------------- exit lock release
   //// but if it exits here???
   /*actual waiting*/
   
-  sema_down(&child->process_wait_sema);
-  return cp->exit_status;
+  ////sema_down(&child->process_wait_sema);
+//  return cp->exit_status;
 }
 
 struct child_process*
@@ -295,17 +297,21 @@ process_exit (void)
   uint32_t *pd;
 
   //----------Task 2-------------//
-  if (!list_empty(&cur->process_wait_sema.waiters)) {
-    sema_up(&cur->process_wait_sema);  
-  }
+///  if (!list_empty(&cur->process_wait_sema.waiters)) {
+///    sema_up(&cur->process_wait_sema);  
+///  }
+  struct thread *parent = thread_current()->parent_process;
+  struct child_process *pcp = get_child_process(thread_current()->tid, &parent->children_processes);
+  sema_up(pcp->cp_process_wait_sema);
 
-  //free the child process malloc
+  //free the child process malloc and free its sema 
   struct list_elem* e;
   struct child_process* child;
   e = list_begin (&cur->children_processes);
   while (e != list_end (&cur->children_processes)) {
     child = list_entry (e, struct child_process, cp_elem);
     e = list_next(e);
+    free(child->cp_process_wait_sema);
     free((void*)child); 
   }
 

@@ -88,6 +88,7 @@ struct child_process{
   tid_t tid;
   int exit_status;
   bool waited;  
+  struct semaphore* cp_process_wait_sema; /// >>
   struct list_elem cp_elem; // use for child_processes list in struct thread
 };
 #endif
@@ -121,7 +122,7 @@ struct thread
     //---//
     struct thread *parent_process;      // for the process thread in user program to refer back to its parent //
     struct list children_processes;
-    struct semaphore process_wait_sema;
+    struct semaphore old_process_wait_sema;
     //---//
 
     struct list files;                   //list of open files in user program
