@@ -70,7 +70,6 @@ syscall_handler (struct intr_frame *f)
   void* addrptr;
   mapid_t* mapidptr;
 
-
   //TASK 3 Stack growth, have to find syscalls that write to stack???
 
 
@@ -253,7 +252,9 @@ read (int fd, void *buffer, unsigned size)
         return RET_ERROR;
       }
       lock_acquire(&file_lock);
+//      printf("HERERERE\n");
       int read = file_read (file_map->filename, buffer, size);
+//      printf("THERERERE\n");
       lock_release(&file_lock);
       return read;
   }
