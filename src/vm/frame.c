@@ -94,16 +94,16 @@ frame_get_page(void* raw_upage, enum palloc_flags flags)
   }
 
 //add entry to frame table
-  struct frame* entry = malloc(sizeof(struct frame));
-  entry->thread = thread_current()->tid;
-  entry->upage = upage;
-  entry->physical = result;
-  entry->pinned = false;
-  list_push_back(&frame_table, &entry->elem);
+//  struct frame* entry = malloc(sizeof(struct frame));
+//  entry->thread = thread_current()->tid;
+//  entry->upage = upage;
+//  entry->physical = result;
+//  entry->pinned = false;
+//  list_push_back(&frame_table, &entry->elem);
 
   //updating supp_page_table of current process
   uint32_t* pd = thread_current()->pagedir;
-  pagedir_set_page(pd, upage, result, true ); // TODO: check if writable is actually true
+ // pagedir_set_page(pd, upage, result, true ); // TODO: check if writable is actually true
   return result;
 
 }

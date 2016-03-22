@@ -293,6 +293,8 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+//  frame_free_page(cur->tid);
   //----------Task 2-------------//
   if (!list_empty(&cur->process_wait_sema.waiters)) {
     sema_up(&cur->process_wait_sema);  
@@ -331,8 +333,6 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  // remove any frames used
-  frame_free_page(cur->tid);
   //allows write to executable file after exit -----
   if (cur-> execfile != NULL) {
     file_allow_write(cur-> execfile);
